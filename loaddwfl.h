@@ -16,7 +16,7 @@
 Dwfl *load_elf_dwfl (const char *file);
 Dwfl *load_kernel_dwfl (const char *kernel, const char *module);
 
-Dwarf *get_first_dwarf (Dwfl *dwfl);
+Dwfl_Module *get_first_module (Dwfl *dwfl);
 
 #endif /* _LOADDWFL_H_ */
 

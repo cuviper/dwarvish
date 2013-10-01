@@ -88,11 +88,15 @@ create_die_tree_view (Dwarf *dwarf, gboolean types)
 
 
 static GtkWidget *
-create_main_window (Dwarf *dwarf)
+create_main_window (Dwarf *dwarf, const char *modname)
 {
   GtkWidget *window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 500, 500);
   g_signal_connect (window, "delete_event", gtk_main_quit, NULL);
+
+  gchar *title = g_strdup_printf ("%s - %s", modname, PACKAGE_NAME);
+  gtk_window_set_title (GTK_WINDOW (window), title);
+  g_free (title);
 
   GtkWidget *notebook = gtk_notebook_new ();
 
@@ -180,11 +184,16 @@ main (int argc, char **argv)
   if (dwfl == NULL)
     exit_message ("Couldn't load the requested target.", FALSE);
 
-  Dwarf *dwarf = get_first_dwarf (dwfl);
-  if (dwarf == NULL)
-    exit_message ("No DWARF found in the target.", FALSE);
+  Dwfl_Module *mod = get_first_module (dwfl);
+  const char *modname = dwfl_module_info (mod, NULL, NULL, NULL,
+                                          NULL, NULL, NULL, NULL);
 
-  GtkWidget *window = create_main_window (dwarf);
+  Dwarf_Addr bias;
+  Dwarf *dwarf = dwfl_module_getdwarf (mod, &bias);
+  if (dwarf == NULL)
+    exit_message ("No DWARF found for the target.", FALSE);
+
+  GtkWidget *window = create_main_window (dwarf, modname);
   gtk_widget_show_all (window);
   gtk_main ();
 

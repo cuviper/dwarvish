@@ -91,25 +91,23 @@ load_kernel_dwfl (const char *kernel, const char *module)
 
 
 static int
-get_first_dwarf_cb (Dwfl_Module *mod __attribute__ ((unused)),
-                    void **userdata __attribute__ ((unused)),
-                    const char *name __attribute__ ((unused)),
-                    Dwarf_Addr start __attribute__ ((unused)),
-                    Dwarf *dwarf,
-                    Dwarf_Addr bias __attribute__ ((unused)),
-                    void *arg)
+get_first_module_cb (Dwfl_Module *mod,
+                     void **userdata __attribute__ ((unused)),
+                     const char *name __attribute__ ((unused)),
+                     Dwarf_Addr start __attribute__ ((unused)),
+                     void *arg)
 {
-  *(Dwarf**)arg = dwarf;
+  *(Dwfl_Module**)arg = mod;
   return DWARF_CB_ABORT;
 }
 
 
-Dwarf *
-get_first_dwarf (Dwfl *dwfl)
+Dwfl_Module *
+get_first_module (Dwfl *dwfl)
 {
-  Dwarf *dwarf = NULL;
-  dwfl_getdwarf (dwfl, get_first_dwarf_cb, &dwarf, 0);
-  return dwarf;
+  Dwfl_Module *mod = NULL;
+  dwfl_getmodules (dwfl, get_first_module_cb, &mod, 0);
+  return mod;
 }
 
 
