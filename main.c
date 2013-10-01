@@ -34,8 +34,8 @@ cell_guint64_to_hex (GtkTreeViewColumn *tree_column __attribute__ ((unused)),
 
 
 static void
-add_column(GtkWidget *view, const gchar* title,
-           gint column, gboolean hex)
+add_column (GtkWidget *view, const gchar* title,
+            gint column, gboolean hex)
 {
   GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
   g_object_set (renderer, "font", "monospace 9", NULL);
@@ -58,9 +58,20 @@ add_column(GtkWidget *view, const gchar* title,
 
 
 static GtkWidget *
-create_die_tree_view (Dwarf *dwarf)
+create_die_tree_view (Dwarf *dwarf, gboolean types)
 {
-  GtkTreeModel *model = GTK_TREE_MODEL (die_tree_new (dwarf));
+  GtkTreeModel *model = die_tree_new (dwarf, types);
+
+  /* If the die tree is empty, just say so.  */
+  GtkTreeIter iter;
+  if (model == NULL || !gtk_tree_model_get_iter_first (model, &iter))
+    {
+      if (model != NULL)
+        g_object_unref (model);
+      return gtk_label_new ("no data found");
+    }
+
+  GtkWidget *scrollwin = gtk_scrolled_window_new (NULL, NULL);
   GtkWidget *view = gtk_tree_view_new_with_model (model);
   g_object_unref (model); /* the view keeps its own reference */
 
@@ -68,7 +79,8 @@ create_die_tree_view (Dwarf *dwarf)
   add_column (view, "Tag", DIE_TREE_COL_TAG_STRING, FALSE);
   add_column (view, "Name", DIE_TREE_COL_NAME, FALSE);
 
-  return view;
+  gtk_container_add (GTK_CONTAINER (scrollwin), view);
+  return scrollwin;
 }
 
 
@@ -123,16 +135,21 @@ main (int argc, char **argv)
   gtk_window_set_default_size (GTK_WINDOW (window), 500, 500);
   g_signal_connect (window, "delete_event", gtk_main_quit, NULL);
 
-  GtkWidget *scrollwin = gtk_scrolled_window_new (NULL, NULL);
+  GtkWidget *notebook = gtk_notebook_new ();
 
   /* For now, just load debuginfo for the running kernel.  */
   Dwfl *dwfl = load_kernel ();
   Dwarf *dwarf = get_first_dwarf (dwfl);
 
-  GtkWidget *view = create_die_tree_view (dwarf);
+  GtkWidget *scrollwin = create_die_tree_view (dwarf, FALSE);
+  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), scrollwin,
+                            gtk_label_new ("Info"));
 
-  gtk_container_add (GTK_CONTAINER (scrollwin), view);
-  gtk_container_add (GTK_CONTAINER (window), scrollwin);
+  scrollwin = create_die_tree_view (dwarf, TRUE);
+  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), scrollwin,
+                            gtk_label_new ("Types"));
+
+  gtk_container_add (GTK_CONTAINER (window), notebook);
 
   gtk_widget_show_all (window);
 

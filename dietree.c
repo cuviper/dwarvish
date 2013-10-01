@@ -30,6 +30,7 @@ typedef struct _DieTree
 {
   GObject parent;
   Dwarf *dwarf;
+  gboolean types;
   GNode *root;
   gint stamp;
 } DieTree;
@@ -83,6 +84,22 @@ ptr2off (gpointer ptr)
   return (Dwarf_Off)(gintptr)ptr;
 }
 
+static inline gpointer
+die2ptr (Dwarf_Die *die)
+{
+  return off2ptr (dwarf_dieoffset (die));
+}
+
+static inline gboolean
+ptr2die (DieTree *dietree, gpointer ptr, Dwarf_Die *die)
+{
+  Dwarf_Off off = ptr2off (ptr);
+  Dwarf_Die *res = dietree->types ?
+    dwarf_offdie_types (dietree->dwarf, off, die)
+    : dwarf_offdie (dietree->dwarf, off, die);
+  return (res != NULL);
+}
+
 
 static GtkTreeModelFlags
 die_tree_get_flags (GtkTreeModel *tree_model)
@@ -117,33 +134,23 @@ die_tree_get_column_type (GtkTreeModel *tree_model, gint index)
 static void
 die_tree_get_children (DieTree *dietree, GNode *node)
 {
+  /* The root is handled differently (dwarf_nextcu/dwarf_next_unit),
+   * but that was done immediately in die_tree_new.  */
+  if (G_NODE_IS_ROOT (node))
+    return;
+
   /* Check if this already has its children.  */
   if (!G_NODE_IS_LEAF (node))
     return;
 
-  if (node->data == NULL)
-    {
-      g_assert (G_NODE_IS_ROOT (node));
-      g_assert (node == dietree->root);
+  Dwarf_Die die;
+  if (!ptr2die (dietree, node->data, &die))
+    g_return_if_reached ();
 
-      size_t cuhl;
-      Dwarf_Off noff, off;
-      for (off = 0; dwarf_nextcu (dietree->dwarf, off, &noff, &cuhl,
-                                  NULL, NULL, NULL) == 0; off = noff)
-        g_node_append_data (node, off2ptr (off + cuhl));
-    }
-  else
-    {
-      Dwarf_Die die;
-      Dwarf_Off offset = ptr2off (node->data);
-      if (!dwarf_offdie (dietree->dwarf, offset, &die))
-        g_return_if_reached ();
-
-      if (dwarf_child (&die, &die) == 0)
-        do
-          g_node_append_data (node, off2ptr (dwarf_dieoffset (&die)));
-        while (dwarf_siblingof (&die, &die) == 0);
-    }
+  if (dwarf_child (&die, &die) == 0)
+    do
+      g_node_append_data (node, die2ptr (&die));
+    while (dwarf_siblingof (&die, &die) == 0);
 }
 
 
@@ -220,7 +227,7 @@ die_tree_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter,
     }
 
   Dwarf_Die die;
-  if (dwarf_offdie (dietree->dwarf, offset, &die) == NULL)
+  if (!ptr2die (dietree, node->data, &die))
     g_return_if_reached ();
 
   switch (column)
@@ -331,8 +338,7 @@ die_tree_iter_has_child (GtkTreeModel *tree_model, GtkTreeIter *iter)
     return TRUE;
 
   Dwarf_Die die;
-  Dwarf_Off offset = ptr2off (node->data);
-  if (!dwarf_offdie (dietree->dwarf, offset, &die))
+  if (!ptr2die (dietree, node->data, &die))
     g_return_val_if_reached (FALSE);
 
   return dwarf_haschildren (&die);
@@ -409,8 +415,8 @@ die_tree_iter_parent (GtkTreeModel *tree_model, GtkTreeIter *iter,
 }
 
 
-DieTree *
-die_tree_new (Dwarf *dwarf)
+GtkTreeModel *
+die_tree_new (Dwarf *dwarf, gboolean types)
 {
   g_return_val_if_fail (dwarf != NULL, NULL);
 
@@ -418,8 +424,19 @@ die_tree_new (Dwarf *dwarf)
   g_assert (dietree != NULL);
 
   dietree->dwarf = dwarf;
+  dietree->types = types;
 
-  return dietree;
+  size_t cuhl;
+  uint64_t type_signature;
+  Dwarf_Off noff, off = 0;
+  while (dwarf_next_unit (dwarf, off, &noff, &cuhl, NULL, NULL, NULL, NULL,
+                          (types ? &type_signature : NULL), NULL) == 0)
+    {
+      g_node_append_data (dietree->root, off2ptr (off + cuhl));
+      off = noff;
+    }
+
+  return GTK_TREE_MODEL (dietree);
 }
 
 

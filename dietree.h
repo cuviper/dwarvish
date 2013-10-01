@@ -25,9 +25,7 @@ enum
   DIE_TREE_N_COLUMNS,
 };
 
-typedef struct _DieTree DieTree;
-
-DieTree *die_tree_new (Dwarf *dwarf);
+GtkTreeModel *die_tree_new (Dwarf *dwarf, gboolean types);
 
 #endif /* _DIETREE_H_ */
 
