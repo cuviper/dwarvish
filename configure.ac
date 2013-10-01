@@ -1,5 +1,6 @@
 AC_PREREQ([2.69])
-AC_INIT([dwarvish], [0.1])
+AC_INIT([DwarVish], [0.1], [https://github.com/cuviper/dwarvish/issues],
+        [dwarvish], [https://github.com/cuviper/dwarvish])
 
 AM_INIT_AUTOMAKE([1.13 foreign])
 AM_SILENT_RULES([yes])
@@ -17,6 +18,7 @@ PKG_CHECK_MODULES([gtk3], [gtk+-3.0])
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 AC_TYPE_SIZE_T
+AC_TYPE_UINT64_T
 
 # Checks for library functions.
 
