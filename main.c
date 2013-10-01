@@ -120,6 +120,23 @@ exit_message (const char *message, gboolean usage)
 }
 
 
+gboolean __attribute__ ((noreturn))
+option_version (const gchar *option_name __attribute__ ((unused)),
+                const gchar *value __attribute__ ((unused)),
+                gpointer data __attribute__ ((unused)),
+                GError **error __attribute__ ((unused)))
+{
+  printf("%s\n", PACKAGE_STRING);
+  printf("Copyright (C) 2013  Josh Stone\n");
+  printf("License GPLv3+: GNU GPL version 3 or later"
+         " <http://gnu.org/licenses/gpl.html>.\n");
+  printf("This is free software:"
+         " you are free to change and redistribute it.\n");
+  printf("There is NO WARRANTY, to the extent permitted by law.\n");
+  exit (EXIT_SUCCESS);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -130,6 +147,11 @@ main (int argc, char **argv)
 
   GOptionEntry options[] =
     {
+        {
+          "version", 'V', G_OPTION_FLAG_NO_ARG,
+          G_OPTION_ARG_CALLBACK, option_version,
+          "Show version information and exit", NULL
+        },
         {
           "kernel", 'k', 0, G_OPTION_ARG_FILENAME, &kernel,
           "Load the given kernel release.", "RELEASE"
