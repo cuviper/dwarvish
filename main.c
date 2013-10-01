@@ -12,10 +12,13 @@
 #include <config.h>
 #endif
 
-#include <elfutils/libdwfl.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 #include <gtk/gtk.h>
 
 #include "dietree.h"
+#include "loaddwfl.h"
 
 
 static void
@@ -84,62 +87,14 @@ create_die_tree_view (Dwarf *dwarf, gboolean types)
 }
 
 
-static Dwfl *
-load_kernel (void)
+static GtkWidget *
+create_main_window (Dwarf *dwarf)
 {
-  static const Dwfl_Callbacks kernel_callbacks =
-    {
-      dwfl_linux_kernel_find_elf,
-      dwfl_standard_find_debuginfo,
-      dwfl_linux_kernel_module_section_address,
-      NULL
-    };
-
-  Dwfl *dwfl = dwfl_begin (&kernel_callbacks);
-  dwfl_report_begin (dwfl);
-  dwfl_linux_kernel_report_kernel (dwfl);
-
-  return dwfl;
-}
-
-
-static int
-get_first_dwarf_cb (Dwfl_Module *mod __attribute__ ((unused)),
-                    void **userdata __attribute__ ((unused)),
-                    const char *name __attribute__ ((unused)),
-                    Dwarf_Addr start __attribute__ ((unused)),
-                    Dwarf *dwarf,
-                    Dwarf_Addr bias __attribute__ ((unused)),
-                    void *arg)
-{
-  *(Dwarf**)arg = dwarf;
-  return DWARF_CB_ABORT;
-}
-
-
-static Dwarf *
-get_first_dwarf (Dwfl *dwfl)
-{
-  Dwarf *dwarf = NULL;
-  dwfl_getdwarf (dwfl, get_first_dwarf_cb, &dwarf, 0);
-  return dwarf;
-}
-
-
-int
-main (int argc, char **argv)
-{
-  gtk_init (&argc, &argv);
-
   GtkWidget *window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 500, 500);
   g_signal_connect (window, "delete_event", gtk_main_quit, NULL);
 
   GtkWidget *notebook = gtk_notebook_new ();
-
-  /* For now, just load debuginfo for the running kernel.  */
-  Dwfl *dwfl = load_kernel ();
-  Dwarf *dwarf = get_first_dwarf (dwfl);
 
   GtkWidget *scrollwin = create_die_tree_view (dwarf, FALSE);
   gtk_notebook_append_page (GTK_NOTEBOOK (notebook), scrollwin,
@@ -150,14 +105,70 @@ main (int argc, char **argv)
                             gtk_label_new ("Types"));
 
   gtk_container_add (GTK_CONTAINER (window), notebook);
+  return window;
+}
 
+
+static void __attribute__ ((noreturn))
+exit_message (const char *message, gboolean usage)
+{
+  if (message)
+    fprintf (stderr, "%s: %s\n", g_get_application_name (), message);
+  if (usage)
+    fprintf (stderr, "Try '--help' for more information.\n");
+  exit (EXIT_FAILURE);
+}
+
+
+int
+main (int argc, char **argv)
+{
+  gchar* kernel = NULL;
+  gchar* module = NULL;
+  gchar** files = NULL;
+  GError *error = NULL;
+
+  GOptionEntry options[] =
+    {
+        {
+          "kernel", 'k', 0, G_OPTION_ARG_FILENAME, &kernel,
+          "Load the given kernel release.", "RELEASE"
+        },
+        {
+          "module", 'm', 0, G_OPTION_ARG_FILENAME, &module,
+          "Load the given kernel module name.", "MODULE"
+        },
+        {
+          G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY, &files,
+          "Load the given ELF file.", "FILE"
+        },
+        { NULL }
+    };
+
+  if (!gtk_init_with_args (&argc, &argv,
+                           "| [--kernel=KERNEL] [--module=MODULE]",
+                           options, NULL, &error))
+    exit_message (error ? error->message : NULL, TRUE);
+
+  if (files && (files[1] || kernel || module))
+    exit_message ("Only one target is supported at a time.", TRUE);
+
+  Dwfl *dwfl = files ? load_elf_dwfl (files[0])
+    : load_kernel_dwfl (kernel, module);
+  if (dwfl == NULL)
+    exit_message ("Couldn't load the requested target.", FALSE);
+
+  Dwarf *dwarf = get_first_dwarf (dwfl);
+  if (dwarf == NULL)
+    exit_message ("No DWARF found in the target.", FALSE);
+
+  GtkWidget *window = create_main_window (dwarf);
   gtk_widget_show_all (window);
-
   gtk_main ();
 
   dwfl_end (dwfl);
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 
