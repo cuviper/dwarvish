@@ -36,7 +36,7 @@ typedef struct _DieTreeData
 
 
 static const char *
-dwarf_tag_string (unsigned int tag)
+dwarf_tag_string (int tag)
 {
   switch (tag)
     {
@@ -58,12 +58,21 @@ die_tree_iter_offset (GtkTreeModel *model, GtkTreeIter *iter)
 }
 
 
-static Dwarf_Off
+static gboolean
 die_tree_offdie (Dwarf *dwarf, gboolean types,
                  Dwarf_Off offset, Dwarf_Die *die)
 {
   return (types ? dwarf_offdie_types (dwarf, offset, die)
           : dwarf_offdie (dwarf, offset, die)) != NULL;
+}
+
+
+gboolean
+die_tree_get_die (GtkTreeModel *model, GtkTreeIter *iter,
+                  Dwarf *dwarf, gboolean types, Dwarf_Die *die)
+{
+  Dwarf_Off offset = die_tree_iter_offset (model, iter);
+  return die_tree_offdie (dwarf, types, offset, die);
 }
 
 
@@ -110,8 +119,7 @@ die_tree_expand_row (GtkTreeView *tree_view,
     return; /* It's an only child, but not the placeholder.  */
 
   Dwarf_Die die;
-  if (!die_tree_offdie (data->dwarf, data->types,
-                        die_tree_iter_offset (model, iter), &die))
+  if (!die_tree_get_die (model, iter, data->dwarf, data->types, &die))
     g_return_if_reached(); /* The parent offset doesn't translate!  */
 
   /* Fill in the real children.  */

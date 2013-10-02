@@ -3,6 +3,7 @@ AM_CSCOPEFLAGS = $(GTK_CFLAGS)
 
 bin_PROGRAMS = dwarvish
 dwarvish_SOURCES = main.c \
+		   attrtree.c attrtree.h \
 		   dietree.c dietree.h \
 		   loaddwfl.c loaddwfl.h \
 		   known-dwarf.h

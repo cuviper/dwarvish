@@ -16,6 +16,7 @@
 
 #include <gtk/gtk.h>
 
+#include "attrtree.h"
 #include "dietree.h"
 #include "loaddwfl.h"
 
@@ -40,11 +41,15 @@ create_die_widget (Dwarf *dwarf, gboolean types)
   gtk_builder_connect_signals (builder, NULL);
 
   GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
-  GtkTreeView *view = GTK_TREE_VIEW (gtk_builder_get_object (builder, "dietreeview"));
+  GtkTreeView *dieview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "dietreeview"));
+  GtkTreeView *attrview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "attrtreeview"));
+  GtkLabel *attrlabel = GTK_LABEL (gtk_builder_get_object (builder, "attrlabel"));
+
   g_object_ref (window);
   g_object_unref (builder);
 
-  die_tree_view_render (view, dwarf, types);
+  die_tree_view_render (dieview, dwarf, types);
+  attr_tree_view_render (dieview, attrview, attrlabel, dwarf, types);
   return window;
 }
 
