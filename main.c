@@ -13,7 +13,6 @@
 #endif
 
 #include <stdlib.h>
-#include <stdio.h>
 
 #include <gtk/gtk.h>
 
@@ -117,9 +116,9 @@ static void __attribute__ ((noreturn))
 exit_message (const char *message, gboolean usage)
 {
   if (message)
-    fprintf (stderr, "%s: %s\n", g_get_application_name (), message);
+    g_printerr ("%s: %s\n", g_get_application_name (), message);
   if (usage)
-    fprintf (stderr, "Try '--help' for more information.\n");
+    g_printerr ("Try '--help' for more information.\n");
   exit (EXIT_FAILURE);
 }
 
@@ -128,15 +127,15 @@ gboolean __attribute__ ((noreturn))
 option_version (const gchar *option_name __attribute__ ((unused)),
                 const gchar *value __attribute__ ((unused)),
                 gpointer data __attribute__ ((unused)),
-                GError **error __attribute__ ((unused)))
+                GError **err __attribute__ ((unused)))
 {
-  printf("%s\n", PACKAGE_STRING);
-  printf("Copyright (C) 2013  Josh Stone\n");
-  printf("License GPLv3+: GNU GPL version 3 or later"
-         " <http://gnu.org/licenses/gpl.html>.\n");
-  printf("This is free software:"
-         " you are free to change and redistribute it.\n");
-  printf("There is NO WARRANTY, to the extent permitted by law.\n");
+  g_print ("%s\n", PACKAGE_STRING);
+  g_print ("Copyright (C) 2013  Josh Stone\n");
+  g_print ("License GPLv3+: GNU GPL version 3 or later"
+           " <http://gnu.org/licenses/gpl.html>.\n");
+  g_print ("This is free software:"
+           " you are free to change and redistribute it.\n");
+  g_print ("There is NO WARRANTY, to the extent permitted by law.\n");
   exit (EXIT_SUCCESS);
 }
 
@@ -172,7 +171,7 @@ main (int argc, char **argv)
     };
 
   if (!gtk_init_with_args (&argc, &argv,
-                           "| [--kernel=KERNEL] [--module=MODULE]",
+                           "| [--kernel=RELEASE] [--module=MODULE]",
                            options, NULL, &error))
     exit_message (error ? error->message : NULL, TRUE);
 

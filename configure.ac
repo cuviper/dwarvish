@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([DwarVish], [0.1], [https://github.com/cuviper/dwarvish/issues],
+AC_INIT([Dwarvish], [0.1], [https://github.com/cuviper/dwarvish/issues],
         [dwarvish], [https://github.com/cuviper/dwarvish])
 
 AM_INIT_AUTOMAKE([1.13 foreign])
