@@ -20,87 +20,60 @@
 #include "loaddwfl.h"
 
 
-static void
-cell_guint64_to_hex (GtkTreeViewColumn *tree_column __attribute__ ((unused)),
-                     GtkCellRenderer *cell, GtkTreeModel *tree_model,
-                     GtkTreeIter *iter, gpointer data)
+#ifndef GDK_VERSION_3_10
+GtkBuilder *
+gtk_builder_new_from_resource (const gchar *resource_path)
 {
-  guint64 num;
-  gint index = (gintptr)data;
-  gtk_tree_model_get (tree_model, iter, index, &num, -1);
-
-  gchar *text = g_strdup_printf ("%" G_GINT64_MODIFIER "x", num);
-  g_object_set (cell, "text", text, NULL);
-  g_free (text);
+  GError *error = NULL;
+  GtkBuilder *builder = gtk_builder_new ();
+  if (!gtk_builder_add_from_resource (builder, resource_path, &error))
+    g_error ("ERROR: %s\n", error->message);
+  return builder;
 }
-
-
-static void
-add_column (GtkWidget *view, const gchar* title,
-            gint column, gboolean hex)
-{
-  GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
-  g_object_set (renderer, "font", "monospace 9", NULL);
-
-  GtkTreeViewColumn *col = gtk_tree_view_column_new ();
-  gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_set_title (col, title);
-
-  if (hex)
-    gtk_tree_view_column_set_cell_data_func (col, renderer,
-                                             cell_guint64_to_hex,
-                                             (gpointer)(gintptr)column,
-                                             NULL);
-  else
-    gtk_tree_view_column_add_attribute (col, renderer,
-                                        "text", column);
-
-  gtk_tree_view_append_column (GTK_TREE_VIEW (view), col);
-}
+#endif
 
 
 static GtkWidget *
-create_die_tree_view (Dwarf *dwarf, gboolean types)
+create_die_widget (Dwarf *dwarf, gboolean types)
 {
-  GtkWidget *view = die_tree_view_new (dwarf, types);
+  GtkBuilder *builder = gtk_builder_new_from_resource ("/dwarvish/die.ui");
+  gtk_builder_connect_signals (builder, NULL);
 
-  /* If the die tree is empty, just say so.  */
-  if (view == NULL)
-    return gtk_label_new ("no data found");
+  GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
+  GtkTreeView *view = GTK_TREE_VIEW (gtk_builder_get_object (builder, "dietreeview"));
+  g_object_ref (window);
+  g_object_unref (builder);
 
-  gtk_tree_view_set_enable_tree_lines (GTK_TREE_VIEW (view), TRUE);
-  add_column (view, "Offset", DIE_TREE_COL_OFFSET, TRUE);
-  add_column (view, "Tag", DIE_TREE_COL_TAG_STRING, FALSE);
-  add_column (view, "Name", DIE_TREE_COL_NAME, FALSE);
-
-  GtkWidget *scrollwin = gtk_scrolled_window_new (NULL, NULL);
-  gtk_container_add (GTK_CONTAINER (scrollwin), view);
-  return scrollwin;
+  die_tree_view_render (view, dwarf, types);
+  return window;
 }
 
 
 static GtkWidget *
 create_main_window (Dwarf *dwarf, const char *modname)
 {
-  GtkWidget *window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_default_size (GTK_WINDOW (window), 500, 500);
-  g_signal_connect (window, "delete_event", gtk_main_quit, NULL);
+  GtkBuilder *builder = gtk_builder_new_from_resource ("/dwarvish/application.ui");
+  gtk_builder_connect_signals (builder, NULL);
 
+  GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
+  GtkWidget *notebook = GTK_WIDGET (gtk_builder_get_object (builder, "notebook"));
+  g_object_unref (builder);
+
+  /* Update the title with our module.  */
   gchar *title = g_strdup_printf ("%s - %s", modname, PACKAGE_NAME);
   gtk_window_set_title (GTK_WINDOW (window), title);
   g_free (title);
 
-  GtkWidget *notebook = gtk_notebook_new ();
-
-  GtkWidget *scrollwin = create_die_tree_view (dwarf, FALSE);
-  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), scrollwin,
+  GtkWidget *die_window = create_die_widget (dwarf, FALSE);
+  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), die_window,
                             gtk_label_new ("Info"));
+  g_object_unref (die_window);
 
-  scrollwin = create_die_tree_view (dwarf, TRUE);
-  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), scrollwin,
+  die_window = create_die_widget (dwarf, TRUE);
+  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), die_window,
                             gtk_label_new ("Types"));
+  g_object_unref (die_window);
 
-  gtk_container_add (GTK_CONTAINER (window), notebook);
   return window;
 }
 

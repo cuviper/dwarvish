@@ -11,7 +11,8 @@ AC_PROG_CC
 
 # Checks for libraries.
 AC_CHECK_LIB([dw], [dwfl_begin])
-PKG_CHECK_MODULES([gtk3], [gtk+-3.0])
+AM_PATH_GLIB_2_0()
+AM_PATH_GTK_3_0()
 
 # Checks for header files.
 

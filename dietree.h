@@ -15,17 +15,10 @@
 #include <gtk/gtk.h>
 
 
-/* The data columns that we export via the tree model interface */
-enum
-{
-  DIE_TREE_COL_OFFSET = 0,
-  DIE_TREE_COL_NAME,
-  DIE_TREE_COL_TAG,
-  DIE_TREE_COL_TAG_STRING,
-  DIE_TREE_N_COLUMNS,
-};
+gboolean die_tree_view_render (GtkTreeView *view,
+                               Dwarf *dwarf,
+                               gboolean types);
 
-GtkWidget *die_tree_view_new (Dwarf *dwarf, gboolean types);
 
 #endif /* _DIETREE_H_ */
 

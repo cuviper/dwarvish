@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <!-- interface-requires gtk+ 3.6 -->
+  <object class="GtkScrolledWindow" id="window">
+    <property name="visible">True</property>
+    <property name="can_focus">True</property>
+    <property name="shadow_type">in</property>
+    <child>
+      <object class="GtkTreeView" id="dietreeview">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="enable_tree_lines">True</property>
+        <child>
+          <object class="GtkTreeViewColumn" id="dietreeviewcolumn-offset">
+            <property name="title" translatable="yes">Offset</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkTreeViewColumn" id="dietreeviewcolumn-tag">
+            <property name="title" translatable="yes">Tag</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkTreeViewColumn" id="dietreeviewcolumn-name">
+            <property name="title" translatable="yes">Name</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

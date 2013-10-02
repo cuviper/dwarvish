@@ -18,6 +18,16 @@
 #include "dietree.h"
 
 
+/* The data columns stored in the tree model.  */
+enum
+{
+  DIE_TREE_COL_OFFSET = 0,
+  DIE_TREE_COL_TAG,
+  DIE_TREE_COL_NAME,
+  DIE_TREE_N_COLUMNS,
+};
+
+
 typedef struct _DieTreeData
 {
   Dwarf *dwarf;
@@ -61,14 +71,12 @@ static void
 die_tree_set_values (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 {
   Dwarf_Off off = dwarf_dieoffset (die);
-  int tag = dwarf_tag (die);
-  const char *tagstr = dwarf_tag_string (tag);
+  const char *tag = dwarf_tag_string (dwarf_tag (die));
   const char *name = dwarf_diename (die);
   gtk_tree_store_set (store, iter,
                       DIE_TREE_COL_OFFSET, off,
-                      DIE_TREE_COL_NAME, name,
                       DIE_TREE_COL_TAG, tag,
-                      DIE_TREE_COL_TAG_STRING, tagstr,
+                      DIE_TREE_COL_NAME, name,
                       -1);
 
   if (dwarf_haschildren (die))
@@ -120,15 +128,55 @@ die_tree_expand_row (GtkTreeView *tree_view,
 }
 
 
-GtkWidget *
-die_tree_view_new (Dwarf *dwarf, gboolean types)
+static void
+cell_guint64_to_hex (GtkTreeViewColumn *tree_column __attribute__ ((unused)),
+                     GtkCellRenderer *cell, GtkTreeModel *tree_model,
+                     GtkTreeIter *iter, gpointer data)
+{
+  guint64 num;
+  gint index = (gintptr)data;
+  gtk_tree_model_get (tree_model, iter, index, &num, -1);
+
+  gchar *text = g_strdup_printf ("%" G_GINT64_MODIFIER "x", num);
+  g_object_set (cell, "text", text, NULL);
+  g_free (text);
+}
+
+
+static void
+die_tree_render_columns (GtkTreeView *view)
+{
+  GtkTreeViewColumn *col;
+  GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
+  g_object_set (renderer, "font", "monospace 9", NULL);
+
+  col = gtk_tree_view_get_column (view, 0);
+  gpointer ptr = (gpointer)(gintptr)DIE_TREE_COL_OFFSET;
+  gtk_tree_view_column_pack_start (col, renderer, TRUE);
+  gtk_tree_view_column_set_cell_data_func (col, renderer,
+                                           cell_guint64_to_hex,
+                                           ptr, NULL);
+
+  col = gtk_tree_view_get_column (view, 1);
+  gtk_tree_view_column_pack_start (col, renderer, TRUE);
+  gtk_tree_view_column_add_attribute (col, renderer, "text",
+                                      DIE_TREE_COL_TAG);
+
+  col = gtk_tree_view_get_column (view, 2);
+  gtk_tree_view_column_pack_start (col, renderer, TRUE);
+  gtk_tree_view_column_add_attribute (col, renderer, "text",
+                                      DIE_TREE_COL_NAME);
+}
+
+
+gboolean
+die_tree_view_render (GtkTreeView *view, Dwarf *dwarf, gboolean types)
 {
   gboolean empty = TRUE;
   GtkTreeStore *store = gtk_tree_store_new (DIE_TREE_N_COLUMNS,
-                                            G_TYPE_UINT64,
-                                            G_TYPE_STRING,
-                                            G_TYPE_INT,
-                                            G_TYPE_STRING
+                                            G_TYPE_UINT64, /* OFFSET */
+                                            G_TYPE_STRING, /* TAG */
+                                            G_TYPE_STRING  /* NAME */
                                             );
 
   size_t cuhl;
@@ -149,14 +197,10 @@ die_tree_view_new (Dwarf *dwarf, gboolean types)
       off = noff;
     }
 
-  if (empty)
-    {
-      g_object_unref (store);
-      return NULL;
-    }
-
-  GtkWidget *view = gtk_tree_view_new_with_model (GTK_TREE_MODEL (store));
+  gtk_tree_view_set_model (view, GTK_TREE_MODEL (store));
   g_object_unref (store); /* The view keeps its own reference.  */
+
+  die_tree_render_columns (view);
 
   DieTreeData *data = g_malloc (sizeof (DieTreeData));
   data->dwarf = dwarf;
@@ -165,7 +209,7 @@ die_tree_view_new (Dwarf *dwarf, gboolean types)
   g_signal_connect (view, "row-expanded",
                     G_CALLBACK (die_tree_expand_row), data);
 
-  return view;
+  return !empty;
 }
 
 
