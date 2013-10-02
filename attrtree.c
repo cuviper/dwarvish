@@ -30,25 +30,10 @@ enum
 
 typedef struct _AttrTreeData
 {
-  GtkLabel *label;
   GtkTreeView *view;
   Dwarf *dwarf;
   gboolean types;
 } AttrTreeData;
-
-
-static const char *
-dwarf_tag_string (int tag)
-{
-  switch (tag)
-    {
-#define ONE_KNOWN_DW_TAG(NAME, CODE) case CODE: return #NAME;
-      ALL_KNOWN_DW_TAG
-#undef ONE_KNOWN_DW_TAG
-    default:
-      return NULL;
-    }
-}
 
 
 static const char *
@@ -109,16 +94,7 @@ die_tree_selection_changed (GtkTreeSelection *selection,
   GtkTreeModel *model;
   if (!gtk_tree_selection_get_selected (selection, &model, &iter) ||
       !die_tree_get_die (model, &iter, data->dwarf, data->types, &die))
-    {
-      gtk_label_set_text (data->label, "Select a DIE to view its attributes");
-      return;
-    }
-
-  gchar *text = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
-                                 dwarf_dieoffset (&die),
-                                 dwarf_tag_string (dwarf_tag (&die)));
-  gtk_label_set_text (data->label, text);
-  g_free (text);
+    return;
 
   AttrCallback cbdata;
   cbdata.store = store;
@@ -149,7 +125,7 @@ attr_tree_render_columns (GtkTreeView *view)
 
 gboolean
 attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree,
-                       GtkLabel *label, Dwarf *dwarf, gboolean types)
+                       Dwarf *dwarf, gboolean types)
 {
   GtkTreeStore *store = gtk_tree_store_new (ATTR_TREE_N_COLUMNS,
                                             G_TYPE_STRING, /* ATTRIBUTE */
@@ -161,7 +137,6 @@ attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree,
   attr_tree_render_columns (attrtree);
 
   AttrTreeData *data = g_malloc (sizeof (AttrTreeData));
-  data->label = label;
   data->view = attrtree;
   data->dwarf = dwarf;
   data->types = types;

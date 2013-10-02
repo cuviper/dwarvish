@@ -8,7 +8,6 @@
       <object class="GtkScrolledWindow" id="dietree-scrollwin">
         <property name="visible">True</property>
         <property name="can_focus">True</property>
-        <property name="hexpand">True</property>
         <property name="shadow_type">in</property>
         <child>
           <object class="GtkTreeView" id="dietreeview">
@@ -42,49 +41,33 @@
       </packing>
     </child>
     <child>
-      <object class="GtkFrame" id="attrframe">
+      <object class="GtkScrolledWindow" id="attrtree-scrollwin">
         <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label_xalign">0</property>
+        <property name="can_focus">True</property>
         <property name="shadow_type">in</property>
         <child>
-          <object class="GtkScrolledWindow" id="attrtree-scrollwin">
+          <object class="GtkTreeView" id="attrtreeview">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="enable_tree_lines">True</property>
+            <child internal-child="selection">
+              <object class="GtkTreeSelection" id="attrtreeview-selection"/>
+            </child>
             <child>
-              <object class="GtkTreeView" id="attrtreeview">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <child internal-child="selection">
-                  <object class="GtkTreeSelection" id="attrtreeview-selection"/>
-                </child>
-                <child>
-                  <object class="GtkTreeViewColumn" id="attrtreeviewcolumn-attribute">
-                    <property name="title" translatable="yes">Attribute</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkTreeViewColumn" id="attrtreeviewcolumn-value">
-                    <property name="title" translatable="yes">Value</property>
-                  </object>
-                </child>
+              <object class="GtkTreeViewColumn" id="attrtreeviewcolumn-attribute">
+                <property name="title" translatable="yes">Attribute</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkTreeViewColumn" id="attrtreeviewcolumn-value">
+                <property name="title" translatable="yes">Value</property>
               </object>
             </child>
           </object>
         </child>
-        <child type="label">
-          <object class="GtkLabel" id="attrlabel">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="xpad">4</property>
-            <property name="ypad">4</property>
-            <property name="label" translatable="yes">Select a DIE to view its attributes</property>
-            <property name="use_markup">True</property>
-          </object>
-        </child>
       </object>
       <packing>
-        <property name="resize">False</property>
+        <property name="resize">True</property>
         <property name="shrink">True</property>
       </packing>
     </child>
