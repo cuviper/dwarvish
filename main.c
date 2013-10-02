@@ -62,25 +62,18 @@ add_column (GtkWidget *view, const gchar* title,
 static GtkWidget *
 create_die_tree_view (Dwarf *dwarf, gboolean types)
 {
-  GtkTreeModel *model = die_tree_new (dwarf, types);
+  GtkWidget *view = die_tree_view_new (dwarf, types);
 
   /* If the die tree is empty, just say so.  */
-  GtkTreeIter iter;
-  if (model == NULL || !gtk_tree_model_get_iter_first (model, &iter))
-    {
-      if (model != NULL)
-        g_object_unref (model);
-      return gtk_label_new ("no data found");
-    }
+  if (view == NULL)
+    return gtk_label_new ("no data found");
 
-  GtkWidget *scrollwin = gtk_scrolled_window_new (NULL, NULL);
-  GtkWidget *view = gtk_tree_view_new_with_model (model);
-  g_object_unref (model); /* the view keeps its own reference */
-
+  gtk_tree_view_set_enable_tree_lines (GTK_TREE_VIEW (view), TRUE);
   add_column (view, "Offset", DIE_TREE_COL_OFFSET, TRUE);
   add_column (view, "Tag", DIE_TREE_COL_TAG_STRING, FALSE);
   add_column (view, "Name", DIE_TREE_COL_NAME, FALSE);
 
+  GtkWidget *scrollwin = gtk_scrolled_window_new (NULL, NULL);
   gtk_container_add (GTK_CONTAINER (scrollwin), view);
   return scrollwin;
 }

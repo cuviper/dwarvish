@@ -1,5 +1,5 @@
 /*
- * die-tree model interface.
+ * die-tree view interface.
  * Copyright (C) 2013  Josh Stone
  *
  * This file is part of dwarvish, and is free software: you can
@@ -25,7 +25,7 @@ enum
   DIE_TREE_N_COLUMNS,
 };
 
-GtkTreeModel *die_tree_new (Dwarf *dwarf, gboolean types);
+GtkWidget *die_tree_view_new (Dwarf *dwarf, gboolean types);
 
 #endif /* _DIETREE_H_ */
 
