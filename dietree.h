@@ -21,8 +21,6 @@ gboolean die_tree_view_render (GtkTreeView *view,
 
 gboolean die_tree_get_die (GtkTreeModel *model,
                            GtkTreeIter *iter,
-                           Dwarf *dwarf,
-                           gboolean types,
                            Dwarf_Die *die);
 
 

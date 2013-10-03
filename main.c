@@ -48,7 +48,7 @@ create_die_widget (Dwarf *dwarf, gboolean types)
   g_object_unref (builder);
 
   die_tree_view_render (dieview, dwarf, types);
-  attr_tree_view_render (dieview, attrview, dwarf, types);
+  attr_tree_view_render (dieview, attrview);
   return window;
 }
 

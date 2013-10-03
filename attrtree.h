@@ -16,9 +16,7 @@
 
 
 gboolean attr_tree_view_render (GtkTreeView *dietree,
-                                GtkTreeView *attrtree,
-                                Dwarf *dwarf,
-                                gboolean types);
+                                GtkTreeView *attrtree);
 
 
 #endif /* _ATTRTREE_H_ */

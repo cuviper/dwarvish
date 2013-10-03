@@ -29,23 +29,6 @@ enum
 };
 
 
-typedef struct _AttrTreeData
-{
-  GtkTreeView *view;
-  Dwarf *dwarf;
-  gboolean types;
-} AttrTreeData;
-
-
-typedef struct _AttrCallback
-{
-  GtkTreeStore *store;
-  GtkTreeIter *parent;
-  GtkTreeIter *sibling;
-  GtkTreeIter iter;
-} AttrCallback;
-
-
 const char *
 attr_value (Dwarf_Attribute *attr, char **value, Dwarf_Die *ref)
 {
@@ -135,6 +118,15 @@ attr_value (Dwarf_Attribute *attr, char **value, Dwarf_Die *ref)
 }
 
 
+typedef struct _AttrCallback
+{
+  GtkTreeStore *store;
+  GtkTreeIter *parent;
+  GtkTreeIter *sibling;
+  GtkTreeIter iter;
+} AttrCallback;
+
+
 int
 getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 {
@@ -179,15 +171,15 @@ static void
 die_tree_selection_changed (GtkTreeSelection *selection,
                             gpointer user_data)
 {
-  AttrTreeData *data = (AttrTreeData *)user_data;
-  GtkTreeStore *store = GTK_TREE_STORE (gtk_tree_view_get_model (data->view));
+  GtkTreeView *view = GTK_TREE_VIEW (user_data);
+  GtkTreeStore *store = GTK_TREE_STORE (gtk_tree_view_get_model (view));
   gtk_tree_store_clear (store);
 
   Dwarf_Die die;
   GtkTreeIter iter;
   GtkTreeModel *model;
-  if (!gtk_tree_selection_get_selected (selection, &model, &iter) ||
-      !die_tree_get_die (model, &iter, data->dwarf, data->types, &die))
+  if (!gtk_tree_selection_get_selected (selection, &model, &iter)
+      || !die_tree_get_die (model, &iter, &die))
     return;
 
   AttrCallback cbdata;
@@ -223,8 +215,7 @@ attr_tree_render_columns (GtkTreeView *view)
 
 
 gboolean
-attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree,
-                       Dwarf *dwarf, gboolean types)
+attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree)
 {
   GtkTreeStore *store = gtk_tree_store_new (ATTR_TREE_N_COLUMNS,
                                             G_TYPE_STRING, /* ATTRIBUTE */
@@ -236,13 +227,8 @@ attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree,
 
   attr_tree_render_columns (attrtree);
 
-  AttrTreeData *data = g_malloc (sizeof (AttrTreeData));
-  data->view = attrtree;
-  data->dwarf = dwarf;
-  data->types = types;
-  g_signal_connect_swapped (attrtree, "destroy", G_CALLBACK (g_free), data);
   g_signal_connect (gtk_tree_view_get_selection (dietree), "changed",
-                    G_CALLBACK (die_tree_selection_changed), data);
+                    G_CALLBACK (die_tree_selection_changed), attrtree);
 
   return TRUE;
 }

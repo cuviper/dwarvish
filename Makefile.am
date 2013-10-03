@@ -1,4 +1,4 @@
-AM_CFLAGS = -std=c99 -Werror -Wall -Wextra
+AM_CFLAGS = -std=gnu99 -Werror -Wall -Wextra
 AM_CSCOPEFLAGS = $(GTK_CFLAGS)
 
 bin_PROGRAMS = dwarvish
