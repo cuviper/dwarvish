@@ -137,7 +137,7 @@ main (int argc, char **argv)
           G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_FILENAME_ARRAY, &files,
           "Load the given ELF file.", "FILE"
         },
-        { NULL }
+        { NULL, 0, 0, 0, NULL, NULL, NULL }
     };
 
   if (!gtk_init_with_args (&argc, &argv,
