@@ -19,20 +19,35 @@
 #include "dietree.h"
 
 
-/* The data columns stored in the tree model.  */
-enum
+static gpointer
+dwarf_attribute_copy (gpointer boxed)
 {
-  ATTR_TREE_COL_ATTRIBUTE = 0,
-  ATTR_TREE_COL_FORM,
-  ATTR_TREE_COL_VALUE,
-  ATTR_TREE_N_COLUMNS,
-};
+  return g_memdup (boxed, sizeof (Dwarf_Attribute));
+}
+static G_DEFINE_BOXED_TYPE (Dwarf_Attribute, dwarf_attribute,
+                            dwarf_attribute_copy, g_free);
+#define G_TYPE_DWARF_ATTRIBUTE (dwarf_attribute_get_type ())
+
+
+gboolean
+attr_tree_get_attribute (GtkTreeModel *model, GtkTreeIter *iter,
+                         Dwarf_Attribute *attr_mem)
+{
+  Dwarf_Attribute *attr = NULL;
+  gtk_tree_model_get (model, iter, 0, &attr, -1);
+  if (attr == NULL)
+    return FALSE;
+  *attr_mem = *attr;
+  g_free (attr);
+  return TRUE;
+}
 
 
 const char *
-attr_value (Dwarf_Attribute *attr, char **value, Dwarf_Die *ref)
+attr_value_string (Dwarf_Attribute *attr, char **alloc)
 {
   bool flag;
+  Dwarf_Die ref;
   Dwarf_Addr addr;
   Dwarf_Sword sword;
   Dwarf_Word word;
@@ -42,8 +57,8 @@ attr_value (Dwarf_Attribute *attr, char **value, Dwarf_Die *ref)
     case DW_FORM_addr:
       if (dwarf_formaddr (attr, &addr) == 0)
         {
-          *value = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", addr);
-          return *value;
+          *alloc = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", addr);
+          return *alloc;
         }
       return NULL;
 
@@ -61,21 +76,21 @@ attr_value (Dwarf_Attribute *attr, char **value, Dwarf_Die *ref)
     case DW_FORM_ref1:
     case DW_FORM_GNU_ref_alt:
     case DW_FORM_ref_sig8:
-      if (dwarf_formref_die (attr, ref) != NULL)
+      if (dwarf_formref_die (attr, &ref) != NULL)
         {
-          Dwarf_Off offset = dwarf_dieoffset (ref);
-          const char *tag = DW_TAG__string (dwarf_tag (ref));
-          *value = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
+          Dwarf_Off offset = dwarf_dieoffset (&ref);
+          const char *tag = DW_TAG__string (dwarf_tag (&ref));
+          *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
                                     offset, tag);
-          return *value;
+          return *alloc;
         }
       return NULL;
 
     case DW_FORM_sdata:
       if (dwarf_formsdata (attr, &sword) == 0)
         {
-          *value = g_strdup_printf ("%" G_GINT64_FORMAT, sword);
-          return *value;
+          *alloc = g_strdup_printf ("%" G_GINT64_FORMAT, sword);
+          return *alloc;
         }
       return NULL;
 
@@ -90,10 +105,10 @@ attr_value (Dwarf_Attribute *attr, char **value, Dwarf_Die *ref)
       if (dwarf_formudata (attr, &word) == 0)
         {
           if (word < 0x10000) /* Print smallish constants in decimal.  */
-            *value = g_strdup_printf ("%" G_GUINT64_FORMAT, word);
+            *alloc = g_strdup_printf ("%" G_GUINT64_FORMAT, word);
           else
-            *value = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", word);
-          return *value;
+            *alloc = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", word);
+          return *alloc;
         }
       return NULL;
 
@@ -131,30 +146,13 @@ int
 getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 {
   AttrCallback *data = (AttrCallback *)user_data;
-
   gtk_tree_store_insert_after (data->store, &data->iter,
                                data->parent, data->sibling);
-
-  int code = dwarf_whatattr (attr);
-  const char *codestring = DW_AT__string (code);
-
-  int form = dwarf_whatform (attr);
-  const char *formstring = DW_FORM__string (form);
+  gtk_tree_store_set (data->store, &data->iter, 0, attr, -1);
 
   Dwarf_Die ref;
-  ref.addr = NULL;
-  char *value_mem = NULL;
-  const char *value = attr_value (attr, &value_mem, &ref);
-
-  gtk_tree_store_set (data->store, &data->iter,
-                      ATTR_TREE_COL_ATTRIBUTE, codestring,
-                      ATTR_TREE_COL_FORM, formstring,
-                      ATTR_TREE_COL_VALUE, value,
-                      -1);
-
-  g_free (value_mem);
-
-  if (ref.addr != NULL && code != DW_AT_sibling)
+  if (dwarf_whatattr (attr) != DW_AT_sibling
+      && dwarf_formref_die (attr, &ref) != NULL)
     {
       AttrCallback cbdata = *data;
       cbdata.parent = &data->iter;
@@ -190,42 +188,71 @@ die_tree_selection_changed (GtkTreeSelection *selection,
 }
 
 
-static void
-attr_tree_render_columns (GtkTreeView *view)
+enum
 {
-  GtkTreeViewColumn *col;
+  ATTR_TREE_COL_ATTRIBUTE,
+  ATTR_TREE_COL_FORM,
+  ATTR_TREE_COL_VALUE,
+};
+
+
+static void
+attr_tree_cell_data (GtkTreeViewColumn *column __attribute__ ((unused)),
+                     GtkCellRenderer *cell, GtkTreeModel *model,
+                     GtkTreeIter *iter, gpointer data)
+{
+  Dwarf_Attribute attr;
+  if (!attr_tree_get_attribute (model, iter, &attr))
+    g_return_if_reached ();
+
+  gchar *alloc = NULL;
+  const gchar *fixed = NULL;
+  switch ((gintptr)data)
+    {
+    case ATTR_TREE_COL_ATTRIBUTE:
+      fixed = DW_AT__string (dwarf_whatattr (&attr));
+      break;
+
+    case ATTR_TREE_COL_FORM:
+      fixed = DW_FORM__string (dwarf_whatform (&attr));
+      break;
+
+    case ATTR_TREE_COL_VALUE:
+      fixed = attr_value_string (&attr, &alloc);
+      break;
+    }
+
+  g_object_set (cell, "text", alloc ?: fixed, NULL);
+  g_free (alloc);
+}
+
+
+static void
+attr_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
+{
+  GtkTreeViewColumn *col = gtk_tree_view_get_column (view, column);
   GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
   g_object_set (renderer, "font", "monospace 9", NULL);
 
-  col = gtk_tree_view_get_column (view, 0);
+  gpointer data = (gpointer)(gintptr)virtual_column;
   gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute (col, renderer, "text",
-                                      ATTR_TREE_COL_ATTRIBUTE);
-
-  col = gtk_tree_view_get_column (view, 1);
-  gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute (col, renderer, "text",
-                                      ATTR_TREE_COL_FORM);
-
-  col = gtk_tree_view_get_column (view, 2);
-  gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute (col, renderer, "text",
-                                      ATTR_TREE_COL_VALUE);
+  gtk_tree_view_column_set_cell_data_func (col, renderer,
+                                           attr_tree_cell_data,
+                                           data, NULL);
 }
 
 
 gboolean
 attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree)
 {
-  GtkTreeStore *store = gtk_tree_store_new (ATTR_TREE_N_COLUMNS,
-                                            G_TYPE_STRING, /* ATTRIBUTE */
-                                            G_TYPE_STRING, /* FORM */
-                                            G_TYPE_STRING  /* VALUE */
-                                            );
+  GtkTreeStore *store = gtk_tree_store_new (1, G_TYPE_DWARF_ATTRIBUTE);
+
   gtk_tree_view_set_model (attrtree, GTK_TREE_MODEL (store));
   g_object_unref (store); /* The view keeps its own reference.  */
 
-  attr_tree_render_columns (attrtree);
+  attr_tree_render_column (attrtree, 0, ATTR_TREE_COL_ATTRIBUTE);
+  attr_tree_render_column (attrtree, 1, ATTR_TREE_COL_FORM);
+  attr_tree_render_column (attrtree, 2, ATTR_TREE_COL_VALUE);
 
   g_signal_connect (gtk_tree_view_get_selection (dietree), "changed",
                     G_CALLBACK (die_tree_selection_changed), attrtree);
