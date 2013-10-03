@@ -12,6 +12,7 @@
 # include <config.h>
 #endif
 
+#include <dwarf.h>
 #include "dwstring.h"
 
 #include "attrtree.h"
@@ -22,6 +23,7 @@
 enum
 {
   ATTR_TREE_COL_ATTRIBUTE = 0,
+  ATTR_TREE_COL_FORM,
   ATTR_TREE_COL_VALUE,
   ATTR_TREE_N_COLUMNS,
 };
@@ -44,6 +46,95 @@ typedef struct _AttrCallback
 } AttrCallback;
 
 
+const char *
+attr_value (Dwarf_Attribute *attr, char **value, Dwarf_Die *ref)
+{
+  bool flag;
+  Dwarf_Addr addr;
+  Dwarf_Sword sword;
+  Dwarf_Word word;
+
+  switch (dwarf_whatform (attr))
+    {
+    case DW_FORM_addr:
+      if (dwarf_formaddr (attr, &addr) == 0)
+        {
+          *value = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", addr);
+          return *value;
+        }
+      return NULL;
+
+    case DW_FORM_indirect:
+    case DW_FORM_strp:
+    case DW_FORM_string:
+    case DW_FORM_GNU_strp_alt:
+      return dwarf_formstring (attr);
+
+    case DW_FORM_ref_addr:
+    case DW_FORM_ref_udata:
+    case DW_FORM_ref8:
+    case DW_FORM_ref4:
+    case DW_FORM_ref2:
+    case DW_FORM_ref1:
+    case DW_FORM_GNU_ref_alt:
+    case DW_FORM_ref_sig8:
+      if (dwarf_formref_die (attr, ref) != NULL)
+        {
+          Dwarf_Off offset = dwarf_dieoffset (ref);
+          const char *tag = DW_TAG__string (dwarf_tag (ref));
+          *value = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
+                                    offset, tag);
+          return *value;
+        }
+      return NULL;
+
+    case DW_FORM_sdata:
+      if (dwarf_formsdata (attr, &sword) == 0)
+        {
+          *value = g_strdup_printf ("%" G_GINT64_FORMAT, sword);
+          return *value;
+        }
+      return NULL;
+
+    case DW_FORM_sec_offset:
+    case DW_FORM_udata:
+    case DW_FORM_data8:
+    case DW_FORM_data4:
+    case DW_FORM_data2:
+    case DW_FORM_data1:
+      /* NOTE: readelf does extra parsing on these (and sdata too)
+       * according to the known values for specific attributes.  */
+      if (dwarf_formudata (attr, &word) == 0)
+        {
+          if (word < 0x10000) /* Print smallish constants in decimal.  */
+            *value = g_strdup_printf ("%" G_GUINT64_FORMAT, word);
+          else
+            *value = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", word);
+          return *value;
+        }
+      return NULL;
+
+    case DW_FORM_flag:
+      if (dwarf_formflag (attr, &flag) == 0)
+        return flag ? "yes" : "no";
+      return NULL;
+
+    case DW_FORM_flag_present:
+      return "yes";
+
+    case DW_FORM_block:
+    case DW_FORM_block1:
+    case DW_FORM_block2:
+    case DW_FORM_block4:
+    case DW_FORM_exprloc:
+      /* TODO */
+
+    default:
+      return NULL;
+    }
+}
+
+
 int
 getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 {
@@ -54,12 +145,30 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 
   int code = dwarf_whatattr (attr);
   const char *codestring = DW_AT__string (code);
+
+  int form = dwarf_whatform (attr);
+  const char *formstring = DW_FORM__string (form);
+
+  Dwarf_Die ref;
+  ref.addr = NULL;
+  char *value_mem = NULL;
+  const char *value = attr_value (attr, &value_mem, &ref);
+
   gtk_tree_store_set (data->store, &data->iter,
                       ATTR_TREE_COL_ATTRIBUTE, codestring,
-                      /* TODO ATTR_TREE_COL_VALUE  */
+                      ATTR_TREE_COL_FORM, formstring,
+                      ATTR_TREE_COL_VALUE, value,
                       -1);
 
-  /* TODO recurse children as dwarf_attr_integrate does.  */
+  g_free (value_mem);
+
+  if (ref.addr != NULL && code != DW_AT_sibling)
+    {
+      AttrCallback cbdata = *data;
+      cbdata.parent = &data->iter;
+      cbdata.sibling = NULL;
+      dwarf_getattrs (&ref, getattrs_callback, &cbdata, 0);
+    }
 
   data->sibling = &data->iter;
   return DWARF_CB_OK;
@@ -104,6 +213,11 @@ attr_tree_render_columns (GtkTreeView *view)
   col = gtk_tree_view_get_column (view, 1);
   gtk_tree_view_column_pack_start (col, renderer, TRUE);
   gtk_tree_view_column_add_attribute (col, renderer, "text",
+                                      ATTR_TREE_COL_FORM);
+
+  col = gtk_tree_view_get_column (view, 2);
+  gtk_tree_view_column_pack_start (col, renderer, TRUE);
+  gtk_tree_view_column_add_attribute (col, renderer, "text",
                                       ATTR_TREE_COL_VALUE);
 }
 
@@ -114,6 +228,7 @@ attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree,
 {
   GtkTreeStore *store = gtk_tree_store_new (ATTR_TREE_N_COLUMNS,
                                             G_TYPE_STRING, /* ATTRIBUTE */
+                                            G_TYPE_STRING, /* FORM */
                                             G_TYPE_STRING  /* VALUE */
                                             );
   gtk_tree_view_set_model (attrtree, GTK_TREE_MODEL (store));

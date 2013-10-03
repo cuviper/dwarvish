@@ -19,16 +19,19 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn" id="dietreeviewcolumn-offset">
+                <property name="sizing">autosize</property>
                 <property name="title" translatable="yes">Offset</property>
               </object>
             </child>
             <child>
               <object class="GtkTreeViewColumn" id="dietreeviewcolumn-tag">
+                <property name="sizing">autosize</property>
                 <property name="title" translatable="yes">Tag</property>
               </object>
             </child>
             <child>
               <object class="GtkTreeViewColumn" id="dietreeviewcolumn-name">
+                <property name="sizing">autosize</property>
                 <property name="title" translatable="yes">Name</property>
               </object>
             </child>
@@ -55,11 +58,19 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn" id="attrtreeviewcolumn-attribute">
+                <property name="sizing">autosize</property>
                 <property name="title" translatable="yes">Attribute</property>
               </object>
             </child>
             <child>
+              <object class="GtkTreeViewColumn" id="attrtreeviewcolumn-form">
+                <property name="sizing">autosize</property>
+                <property name="title" translatable="yes">Form</property>
+              </object>
+            </child>
+            <child>
               <object class="GtkTreeViewColumn" id="attrtreeviewcolumn-value">
+                <property name="sizing">autosize</property>
                 <property name="title" translatable="yes">Value</property>
               </object>
             </child>
