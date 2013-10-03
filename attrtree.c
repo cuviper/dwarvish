@@ -12,8 +12,7 @@
 # include <config.h>
 #endif
 
-#include <dwarf.h>
-#include "known-dwarf.h"
+#include "dwstring.h"
 
 #include "attrtree.h"
 #include "dietree.h"
@@ -36,20 +35,6 @@ typedef struct _AttrTreeData
 } AttrTreeData;
 
 
-static const char *
-dwarf_attr_string (int code)
-{
-  switch (code)
-    {
-#define ONE_KNOWN_DW_AT(NAME, CODE) case CODE: return #NAME;
-      ALL_KNOWN_DW_AT
-#undef ONE_KNOWN_DW_AT
-    default:
-      return NULL;
-    }
-}
-
-
 typedef struct _AttrCallback
 {
   GtkTreeStore *store;
@@ -68,9 +53,9 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
                                data->parent, data->sibling);
 
   int code = dwarf_whatattr (attr);
-  const char *string = dwarf_attr_string (code);
+  const char *codestring = DW_AT__string (code);
   gtk_tree_store_set (data->store, &data->iter,
-                      ATTR_TREE_COL_ATTRIBUTE, string,
+                      ATTR_TREE_COL_ATTRIBUTE, codestring,
                       /* TODO ATTR_TREE_COL_VALUE  */
                       -1);
 

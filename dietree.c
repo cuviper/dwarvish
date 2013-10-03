@@ -12,10 +12,8 @@
 # include <config.h>
 #endif
 
-#include <dwarf.h>
-#include "known-dwarf.h"
-
 #include "dietree.h"
+#include "dwstring.h"
 
 
 /* The data columns stored in the tree model.  */
@@ -33,20 +31,6 @@ typedef struct _DieTreeData
   Dwarf *dwarf;
   gboolean types;
 } DieTreeData;
-
-
-static const char *
-dwarf_tag_string (int tag)
-{
-  switch (tag)
-    {
-#define ONE_KNOWN_DW_TAG(NAME, CODE) case CODE: return #NAME;
-      ALL_KNOWN_DW_TAG
-#undef ONE_KNOWN_DW_TAG
-    default:
-      return NULL;
-    }
-}
 
 
 static Dwarf_Off
@@ -80,7 +64,7 @@ static void
 die_tree_set_values (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 {
   Dwarf_Off off = dwarf_dieoffset (die);
-  const char *tag = dwarf_tag_string (dwarf_tag (die));
+  const char *tag = DW_TAG__string (dwarf_tag (die));
   const char *name = dwarf_diename (die);
   gtk_tree_store_set (store, iter,
                       DIE_TREE_COL_OFFSET, off,
