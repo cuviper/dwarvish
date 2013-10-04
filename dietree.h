@@ -15,10 +15,12 @@
 #include <gtk/gtk.h>
 
 
+G_GNUC_INTERNAL
 gboolean die_tree_view_render (GtkTreeView *view,
                                Dwarf *dwarf,
                                gboolean types);
 
+G_GNUC_INTERNAL
 gboolean die_tree_get_die (GtkTreeModel *model,
                            GtkTreeIter *iter,
                            Dwarf_Die *die);

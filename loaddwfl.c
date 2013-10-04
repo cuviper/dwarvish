@@ -12,7 +12,7 @@
 # include <config.h>
 #endif
 
-#include <string.h>
+#include <glib.h>
 
 #include "loaddwfl.h"
 
@@ -46,13 +46,12 @@ load_elf_dwfl (const char *file)
 static const char *search_module;
 
 static int
-module_predicate (const char *module,
-                  const char *path __attribute__ ((unused)))
+module_predicate (const char *module, G_GNUC_UNUSED const char *path)
 {
   if (search_module == NULL)
     return -1;
 
-  if (strcmp (search_module, module) == 0)
+  if (g_strcmp0 (search_module, module) == 0)
     {
       search_module = NULL;
       return 1;
@@ -92,9 +91,9 @@ load_kernel_dwfl (const char *kernel, const char *module)
 
 static int
 get_first_module_cb (Dwfl_Module *mod,
-                     void **userdata __attribute__ ((unused)),
-                     const char *name __attribute__ ((unused)),
-                     Dwarf_Addr start __attribute__ ((unused)),
+                     G_GNUC_UNUSED void **userdata,
+                     G_GNUC_UNUSED const char *name,
+                     G_GNUC_UNUSED Dwarf_Addr start,
                      void *arg)
 {
   *(Dwfl_Module**)arg = mod;

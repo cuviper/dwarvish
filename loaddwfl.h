@@ -11,11 +11,16 @@
 #ifndef _LOADDWFL_H_
 #define _LOADDWFL_H_
 
+#include <glib.h>
 #include <elfutils/libdwfl.h>
 
+G_GNUC_INTERNAL
 Dwfl *load_elf_dwfl (const char *file);
+
+G_GNUC_INTERNAL
 Dwfl *load_kernel_dwfl (const char *kernel, const char *module);
 
+G_GNUC_INTERNAL
 Dwfl_Module *get_first_module (Dwfl *dwfl);
 
 #endif /* _LOADDWFL_H_ */

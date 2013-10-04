@@ -22,7 +22,7 @@
 
 
 #ifndef GDK_VERSION_3_10
-GtkBuilder *
+static GtkBuilder *
 gtk_builder_new_from_resource (const gchar *resource_path)
 {
   GError *error = NULL;
@@ -83,7 +83,7 @@ create_main_window (Dwarf *dwarf, const char *modname)
 }
 
 
-static void __attribute__ ((noreturn))
+static void G_GNUC_NORETURN
 exit_message (const char *message, gboolean usage)
 {
   if (message)
@@ -94,11 +94,11 @@ exit_message (const char *message, gboolean usage)
 }
 
 
-gboolean __attribute__ ((noreturn))
-option_version (const gchar *option_name __attribute__ ((unused)),
-                const gchar *value __attribute__ ((unused)),
-                gpointer data __attribute__ ((unused)),
-                GError **err __attribute__ ((unused)))
+static gboolean G_GNUC_NORETURN
+option_version (G_GNUC_UNUSED const gchar *option_name,
+                G_GNUC_UNUSED const gchar *value,
+                G_GNUC_UNUSED gpointer data,
+                G_GNUC_UNUSED GError **err)
 {
   g_print ("%s\n", PACKAGE_STRING);
   g_print ("Copyright (C) 2013  Josh Stone\n");

@@ -39,7 +39,7 @@ attr_tree_get_attribute (GtkTreeModel *model, GtkTreeIter *iter,
 }
 
 
-const char *
+static const char *
 attr_value_string (Dwarf_Attribute *attr, char **alloc)
 {
   bool flag;
@@ -138,7 +138,7 @@ typedef struct _AttrCallback
 } AttrCallback;
 
 
-int
+static int
 getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 {
   AttrCallback *data = (AttrCallback *)user_data;
@@ -193,7 +193,7 @@ enum
 
 
 static void
-attr_tree_cell_data (GtkTreeViewColumn *column __attribute__ ((unused)),
+attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
                      GtkCellRenderer *cell, GtkTreeModel *model,
                      GtkTreeIter *iter, gpointer data)
 {

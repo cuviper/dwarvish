@@ -15,6 +15,7 @@
 #include <gtk/gtk.h>
 
 
+G_GNUC_INTERNAL
 gboolean attr_tree_view_render (GtkTreeView *attrtree);
 
 

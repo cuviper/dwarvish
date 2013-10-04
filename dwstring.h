@@ -11,10 +11,11 @@
 #ifndef __DW_STRING_H__
 #define __DW_STRING_H__
 
+#include <glib.h>
 #include "known-dwarf.h"
 
 #define ONE_KNOWN_DW_SET(set) \
-  const char *DW_##set##__string (int code);
+  G_GNUC_INTERNAL const char *DW_##set##__string (int code);
 ALL_KNOWN_DW_SETS
 #undef ONE_KNOWN_DW_SET
 

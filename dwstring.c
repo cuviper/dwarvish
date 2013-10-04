@@ -12,7 +12,6 @@
 # include <config.h>
 #endif
 
-#include <stdlib.h>
 #include <dwarf.h>
 #include "dwstring.h"
 
