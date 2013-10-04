@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 3.6 -->
-  <object class="GtkPaned" id="window">
+  <object class="GtkPaned" id="widget">
     <property name="visible">True</property>
     <property name="can_focus">True</property>
     <child>

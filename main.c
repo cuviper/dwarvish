@@ -39,7 +39,7 @@ create_die_widget (Dwarf *dwarf, gboolean types)
 {
   GtkBuilder *builder = gtk_builder_new_from_resource ("/dwarvish/die.ui");
 
-  GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
+  GtkWidget *widget = GTK_WIDGET (gtk_builder_get_object (builder, "widget"));
   GtkTreeView *dieview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "dietreeview"));
   GtkTreeView *attrview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "attrtreeview"));
 
@@ -48,37 +48,49 @@ create_die_widget (Dwarf *dwarf, gboolean types)
 
   gtk_builder_connect_signals (builder, NULL);
 
-  g_object_ref (window);
+  g_object_ref (widget);
   g_object_unref (builder);
-  return window;
+  return widget;
 }
 
 
 static GtkWidget *
-create_main_window (Dwarf *dwarf, const char *modname)
+create_main_window (Dwfl_Module *mod, Dwarf *dwarf)
 {
   GtkBuilder *builder = gtk_builder_new_from_resource ("/dwarvish/application.ui");
-  gtk_builder_connect_signals (builder, NULL);
 
   GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
-  GtkWidget *notebook = GTK_WIDGET (gtk_builder_get_object (builder, "notebook"));
-  g_object_unref (builder);
+  GtkNotebook *notebook = GTK_NOTEBOOK (gtk_builder_get_object (builder, "notebook"));
+  GtkLabel *mainfile = GTK_LABEL (gtk_builder_get_object (builder, "mainfile"));
+  GtkLabel *debugfile = GTK_LABEL (gtk_builder_get_object (builder, "debugfile"));
+
+  const char *mainfilename, *debugfilename;
+  const char *modname = dwfl_module_info (mod, NULL, NULL, NULL, NULL, NULL,
+                                          &mainfilename, &debugfilename);
 
   /* Update the title with our module.  */
-  gchar *title = g_strdup_printf ("%s - %s", modname, PACKAGE_NAME);
+  gchar *modbasename = g_path_get_basename (modname);
+  gchar *title = g_strdup_printf ("%s - %s", modbasename, PACKAGE_NAME);
   gtk_window_set_title (GTK_WINDOW (window), title);
   g_free (title);
+  g_free (modbasename);
 
-  GtkWidget *die_window = create_die_widget (dwarf, FALSE);
-  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), die_window,
-                            gtk_label_new ("Info"));
-  g_object_unref (die_window);
+  /* Update the file path labels.  */
+  gtk_label_set_text (mainfile, mainfilename);
+  gtk_label_set_text (debugfile, debugfilename);
 
-  die_window = create_die_widget (dwarf, TRUE);
-  gtk_notebook_append_page (GTK_NOTEBOOK (notebook), die_window,
-                            gtk_label_new ("Types"));
-  g_object_unref (die_window);
+  /* Attach the .debug_info view.  */
+  GtkWidget *die_widget = create_die_widget (dwarf, FALSE);
+  gtk_notebook_append_page (notebook, die_widget, gtk_label_new ("Info"));
+  g_object_unref (die_widget);
 
+  /* Attach the .debug_types view.  */
+  die_widget = create_die_widget (dwarf, TRUE);
+  gtk_notebook_append_page (notebook, die_widget, gtk_label_new ("Types"));
+  g_object_unref (die_widget);
+
+  gtk_builder_connect_signals (builder, NULL);
+  g_object_unref (builder);
   return window;
 }
 
@@ -155,15 +167,13 @@ main (int argc, char **argv)
     exit_message ("Couldn't load the requested target.", FALSE);
 
   Dwfl_Module *mod = get_first_module (dwfl);
-  const char *modname = dwfl_module_info (mod, NULL, NULL, NULL,
-                                          NULL, NULL, NULL, NULL);
 
   Dwarf_Addr bias;
   Dwarf *dwarf = dwfl_module_getdwarf (mod, &bias);
   if (dwarf == NULL)
     exit_message ("No DWARF found for the target.", FALSE);
 
-  GtkWidget *window = create_main_window (dwarf, modname);
+  GtkWidget *window = create_main_window (mod, dwarf);
   gtk_widget_show_all (window);
   gtk_main ();
 
