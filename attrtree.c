@@ -17,19 +17,15 @@
 
 #include "attrtree.h"
 #include "dietree.h"
+#include "util.h"
 
 
-static gpointer
-dwarf_attribute_copy (gpointer boxed)
-{
-  return g_memdup (boxed, sizeof (Dwarf_Attribute));
-}
-static G_DEFINE_BOXED_TYPE (Dwarf_Attribute, dwarf_attribute,
-                            dwarf_attribute_copy, g_free);
-#define G_TYPE_DWARF_ATTRIBUTE (dwarf_attribute_get_type ())
+G_DEFINE_SLICED_COPY_FREE (Dwarf_Attribute, dwarf_attr);
+static G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Attribute, dwarf_attr);
+#define G_TYPE_DWARF_ATTR (dwarf_attr_get_type ())
 
 
-gboolean
+static gboolean
 attr_tree_get_attribute (GtkTreeModel *model, GtkTreeIter *iter,
                          Dwarf_Attribute *attr_mem)
 {
@@ -38,7 +34,7 @@ attr_tree_get_attribute (GtkTreeModel *model, GtkTreeIter *iter,
   if (attr == NULL)
     return FALSE;
   *attr_mem = *attr;
-  g_free (attr);
+  dwarf_attr_free (attr);
   return TRUE;
 }
 
@@ -245,7 +241,7 @@ attr_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
 gboolean
 attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree)
 {
-  GtkTreeStore *store = gtk_tree_store_new (1, G_TYPE_DWARF_ATTRIBUTE);
+  GtkTreeStore *store = gtk_tree_store_new (1, G_TYPE_DWARF_ATTR);
 
   gtk_tree_view_set_model (attrtree, GTK_TREE_MODEL (store));
   g_object_unref (store); /* The view keeps its own reference.  */
