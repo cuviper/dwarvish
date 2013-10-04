@@ -48,11 +48,10 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 }
 
 
-static void
-die_tree_expand_row (GtkTreeView *tree_view,
-                     GtkTreeIter *iter,
-                     GtkTreePath *path __attribute__ ((unused)),
-                     gpointer user_data __attribute__ ((unused)))
+G_MODULE_EXPORT void
+signal_die_tree_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
+                            GtkTreePath *path __attribute__ ((unused)),
+                            gpointer user_data __attribute__ ((unused)))
 {
   GtkTreeModel *model = gtk_tree_view_get_model (tree_view);
 
@@ -169,9 +168,6 @@ die_tree_view_render (GtkTreeView *view, Dwarf *dwarf, gboolean types)
   die_tree_render_column (view, 0, DIE_TREE_COL_OFFSET);
   die_tree_render_column (view, 1, DIE_TREE_COL_TAG);
   die_tree_render_column (view, 2, DIE_TREE_COL_NAME);
-
-  g_signal_connect (view, "row-expanded",
-                    G_CALLBACK (die_tree_expand_row), NULL);
 
   return !empty;
 }

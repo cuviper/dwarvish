@@ -38,17 +38,18 @@ static GtkWidget *
 create_die_widget (Dwarf *dwarf, gboolean types)
 {
   GtkBuilder *builder = gtk_builder_new_from_resource ("/dwarvish/die.ui");
-  gtk_builder_connect_signals (builder, NULL);
 
   GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
   GtkTreeView *dieview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "dietreeview"));
   GtkTreeView *attrview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "attrtreeview"));
 
+  die_tree_view_render (dieview, dwarf, types);
+  attr_tree_view_render (attrview);
+
+  gtk_builder_connect_signals (builder, NULL);
+
   g_object_ref (window);
   g_object_unref (builder);
-
-  die_tree_view_render (dieview, dwarf, types);
-  attr_tree_view_render (dieview, attrview);
   return window;
 }
 

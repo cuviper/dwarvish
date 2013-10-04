@@ -15,8 +15,7 @@
 #include <gtk/gtk.h>
 
 
-gboolean attr_tree_view_render (GtkTreeView *dietree,
-                                GtkTreeView *attrtree);
+gboolean attr_tree_view_render (GtkTreeView *attrtree);
 
 
 #endif /* _ATTRTREE_H_ */

@@ -8,8 +8,8 @@ dwarvish_SOURCES = attrtree.c attrtree.h \
 		   loaddwfl.c loaddwfl.h \
 		   main.c
 nodist_dwarvish_SOURCES = known-dwarf.h dwarvish_resources.c
-dwarvish_CFLAGS = $(AM_CFLAGS) $(GTK_CFLAGS)
-dwarvish_LDFLAGS = $(AM_LDFLAGS) $(GTK_LIBS)
+dwarvish_CFLAGS = $(AM_CFLAGS) $(GTK_CFLAGS) $(GLIB_CFLAGS)
+dwarvish_LDADD = $(GTK_LIBS) $(GLIB_LIBS)
 
 dwarvish_RESOURCES = application.ui die.ui
 

@@ -14,8 +14,11 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="enable_tree_lines">True</property>
+            <signal name="row-expanded" handler="signal_die_tree_expand_row" swapped="no"/>
             <child internal-child="selection">
-              <object class="GtkTreeSelection" id="dietreeview-selection"/>
+              <object class="GtkTreeSelection" id="dietreeview-selection">
+                <signal name="changed" handler="signal_die_tree_selection_changed" object="attrtreeview" swapped="no"/>
+              </object>
             </child>
             <child>
               <object class="GtkTreeViewColumn" id="dietreeviewcolumn-offset">

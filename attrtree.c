@@ -161,9 +161,9 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 }
 
 
-static void
-die_tree_selection_changed (GtkTreeSelection *selection,
-                            gpointer user_data)
+G_MODULE_EXPORT void
+signal_die_tree_selection_changed (GtkTreeSelection *selection,
+                                   gpointer user_data)
 {
   GtkTreeView *view = GTK_TREE_VIEW (user_data);
   GtkTreeStore *store = GTK_TREE_STORE (gtk_tree_view_get_model (view));
@@ -239,7 +239,7 @@ attr_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
 
 
 gboolean
-attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree)
+attr_tree_view_render (GtkTreeView *attrtree)
 {
   GtkTreeStore *store = gtk_tree_store_new (1, G_TYPE_DWARF_ATTR);
 
@@ -249,9 +249,6 @@ attr_tree_view_render (GtkTreeView *dietree, GtkTreeView *attrtree)
   attr_tree_render_column (attrtree, 0, ATTR_TREE_COL_ATTRIBUTE);
   attr_tree_render_column (attrtree, 1, ATTR_TREE_COL_FORM);
   attr_tree_render_column (attrtree, 2, ATTR_TREE_COL_VALUE);
-
-  g_signal_connect (gtk_tree_view_get_selection (dietree), "changed",
-                    G_CALLBACK (die_tree_selection_changed), attrtree);
 
   return TRUE;
 }
