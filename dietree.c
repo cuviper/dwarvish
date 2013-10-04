@@ -108,6 +108,8 @@ die_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
 
     case DIE_TREE_COL_TAG:
       fixed = DW_TAG__string (dwarf_tag (&die));
+      if (G_UNLIKELY (fixed == NULL))
+        alloc = g_strdup_printf ("%#x", dwarf_tag (&die));
       break;
 
     case DIE_TREE_COL_NAME:
@@ -116,7 +118,8 @@ die_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
     }
 
   g_object_set (cell, "text", alloc ?: fixed, NULL);
-  g_free (alloc);
+  if (alloc != NULL)
+    g_free (alloc);
 }
 
 

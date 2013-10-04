@@ -76,8 +76,12 @@ attr_value_string (Dwarf_Attribute *attr, char **alloc)
         {
           Dwarf_Off offset = dwarf_dieoffset (&ref);
           const char *tag = DW_TAG__string (dwarf_tag (&ref));
-          *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
-                                    offset, tag);
+          if (G_UNLIKELY (tag == NULL))
+            *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %#x",
+                                      offset, dwarf_tag (&ref));
+          else
+            *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
+                                      offset, tag);
           return *alloc;
         }
       return NULL;
@@ -207,10 +211,14 @@ attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
     {
     case ATTR_TREE_COL_ATTRIBUTE:
       fixed = DW_AT__string (dwarf_whatattr (&attr));
+      if (G_UNLIKELY (fixed == NULL))
+        alloc = g_strdup_printf ("%#x", dwarf_whatattr (&attr));
       break;
 
     case ATTR_TREE_COL_FORM:
       fixed = DW_FORM__string (dwarf_whatform (&attr));
+      if (G_UNLIKELY (fixed == NULL))
+        alloc = g_strdup_printf ("%#x", dwarf_whatform (&attr));
       break;
 
     case ATTR_TREE_COL_VALUE:
@@ -219,7 +227,8 @@ attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
     }
 
   g_object_set (cell, "text", alloc ?: fixed, NULL);
-  g_free (alloc);
+  if (alloc != NULL)
+    g_free (alloc);
 }
 
 
