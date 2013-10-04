@@ -203,7 +203,7 @@ attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
 
   gchar *alloc = NULL;
   const gchar *fixed = NULL;
-  switch ((gintptr)data)
+  switch (GPOINTER_TO_INT (data))
     {
     case ATTR_TREE_COL_ATTRIBUTE:
       fixed = DW_AT__string (dwarf_whatattr (&attr));
@@ -230,11 +230,10 @@ attr_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
   GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
   g_object_set (renderer, "font", "monospace 9", NULL);
 
-  gpointer data = (gpointer)(gintptr)virtual_column;
   gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_set_cell_data_func (col, renderer,
-                                           attr_tree_cell_data,
-                                           data, NULL);
+  gtk_tree_view_column_set_cell_data_func (col, renderer, attr_tree_cell_data,
+                                           GINT_TO_POINTER (virtual_column),
+                                           NULL);
 }
 
 
