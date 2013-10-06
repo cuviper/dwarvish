@@ -44,12 +44,15 @@ create_die_widget (DwarvishSession *session, gboolean types)
   GtkTreeView *dieview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "dietreeview"));
   GtkTreeView *attrview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "attrtreeview"));
 
-  die_tree_view_render (dieview, session, types);
-  attr_tree_view_render (attrview);
+  if (die_tree_view_render (dieview, session, types)
+      && attr_tree_view_render (attrview))
+    {
+      g_object_ref (widget);
+      gtk_builder_connect_signals (builder, NULL);
+    }
+  else
+    widget = NULL;
 
-  gtk_builder_connect_signals (builder, NULL);
-
-  g_object_ref (widget);
   g_object_unref (builder);
   return widget;
 }
@@ -76,13 +79,19 @@ create_main_window (DwarvishSession *session)
 
   /* Attach the .debug_info view.  */
   GtkWidget *die_widget = create_die_widget (session, FALSE);
-  gtk_notebook_append_page (notebook, die_widget, gtk_label_new ("Info"));
-  g_object_unref (die_widget);
+  if (die_widget)
+    {
+      gtk_notebook_append_page (notebook, die_widget, gtk_label_new ("Info"));
+      g_object_unref (die_widget);
+    }
 
   /* Attach the .debug_types view.  */
   die_widget = create_die_widget (session, TRUE);
-  gtk_notebook_append_page (notebook, die_widget, gtk_label_new ("Types"));
-  g_object_unref (die_widget);
+  if (die_widget)
+    {
+      gtk_notebook_append_page (notebook, die_widget, gtk_label_new ("Types"));
+      g_object_unref (die_widget);
+    }
 
   gtk_builder_connect_signals (builder, NULL);
   g_object_unref (builder);
