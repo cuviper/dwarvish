@@ -15,7 +15,9 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="enable_tree_lines">True</property>
+            <property name="tooltip_column">0</property>
             <signal name="row-expanded" handler="signal_die_tree_expand_row" swapped="no"/>
+            <signal name="query-tooltip" handler="signal_die_tree_query_tooltip" swapped="no"/>
             <child internal-child="selection">
               <object class="GtkTreeSelection" id="dietreeview-selection">
                 <signal name="changed" handler="signal_die_tree_selection_changed" object="attrtreeview" swapped="no"/>
@@ -54,6 +56,8 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="enable_tree_lines">True</property>
+            <property name="tooltip_column">0</property>
+            <signal name="query-tooltip" handler="signal_attr_tree_query_tooltip" swapped="no"/>
             <child internal-child="selection">
               <object class="GtkTreeSelection" id="attrtreeview-selection"/>
             </child>

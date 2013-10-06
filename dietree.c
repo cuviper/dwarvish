@@ -80,6 +80,35 @@ signal_die_tree_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
 }
 
 
+G_MODULE_EXPORT gboolean
+signal_die_tree_query_tooltip (GtkWidget *widget,
+                               gint x, gint y, gboolean keyboard_mode,
+                               GtkTooltip *tooltip,
+                               G_GNUC_UNUSED gpointer user_data)
+{
+  GtkTreeView *view = GTK_TREE_VIEW (widget);
+
+  GtkTreeModel *model;
+  GtkTreePath *path;
+  GtkTreeIter iter;
+  if (!gtk_tree_view_get_tooltip_context (view, &x, &y, keyboard_mode,
+                                          &model, &path, &iter))
+    return FALSE;
+
+  gtk_tree_view_set_tooltip_row (view, tooltip, path);
+  gtk_tree_path_free (path);
+
+  Dwarf_Die die;
+  if (!die_tree_get_die (model, &iter, &die))
+    g_return_val_if_reached (FALSE);
+
+  const gchar *name = dwarf_diename (&die);
+  gtk_tooltip_set_text (tooltip, name);
+
+  return (name != NULL);
+}
+
+
 enum
 {
   DIE_TREE_COL_OFFSET,
@@ -129,6 +158,8 @@ die_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
   GtkTreeViewColumn *col = gtk_tree_view_get_column (view, column);
   GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
   g_object_set (renderer, "font", "monospace 9", NULL);
+  if (virtual_column == DIE_TREE_COL_NAME)
+    g_object_set (renderer, "ellipsize", PANGO_ELLIPSIZE_END, NULL);
 
   gtk_tree_view_column_pack_start (col, renderer, TRUE);
   gtk_tree_view_column_set_cell_data_func (col, renderer, die_tree_cell_data,
