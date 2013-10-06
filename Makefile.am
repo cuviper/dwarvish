@@ -6,7 +6,7 @@ dwarvish_SOURCES = attrtree.c attrtree.h \
 		   dietree.c dietree.h \
 		   dwstring.c dwstring.h \
 		   loaddwfl.c loaddwfl.h \
-		   main.c util.h
+		   main.c session.h util.h
 nodist_dwarvish_SOURCES = known-dwarf.h dwarvish_resources.c
 dwarvish_CFLAGS = $(AM_CFLAGS) $(GTK_CFLAGS) $(GLIB_CFLAGS)
 dwarvish_LDADD = $(GTK_LIBS) $(GLIB_LIBS)

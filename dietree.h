@@ -14,10 +14,12 @@
 #include <elfutils/libdw.h>
 #include <gtk/gtk.h>
 
+#include "session.h"
+
 
 G_GNUC_INTERNAL
 gboolean die_tree_view_render (GtkTreeView *view,
-                               Dwarf *dwarf,
+                               DwarvishSession *session,
                                gboolean types);
 
 G_GNUC_INTERNAL

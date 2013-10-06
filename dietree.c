@@ -12,6 +12,7 @@
 # include <config.h>
 #endif
 
+#include <dwarf.h>
 #include "dietree.h"
 #include "dwstring.h"
 #include "util.h"
@@ -48,6 +49,34 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 }
 
 
+static void
+expand_die_children (GtkTreeStore *store,
+                     GtkTreeIter *parent, GtkTreeIter *iter,
+                     Dwarf_Die *die, gboolean explicit_imports)
+{
+  Dwarf_Die child;
+  if (dwarf_child (die, &child) == 0)
+    do
+      {
+        if (!explicit_imports &&
+            dwarf_tag (&child) == DW_TAG_imported_unit)
+          {
+            Dwarf_Die import;
+            Dwarf_Attribute attr;
+            if (dwarf_attr (&child, DW_AT_import, &attr) != NULL &&
+                dwarf_formref_die (&attr, &import) != NULL)
+              expand_die_children (store, parent, iter,
+                                   &import, explicit_imports);
+            continue;
+          }
+
+        gtk_tree_store_insert_after (store, iter, parent, iter);
+        die_tree_set_die (store, iter, &child);
+      }
+    while (dwarf_siblingof (&child, &child) == 0);
+}
+
+
 G_MODULE_EXPORT void
 signal_die_tree_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
                             G_GNUC_UNUSED GtkTreePath *path,
@@ -55,28 +84,28 @@ signal_die_tree_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
 {
   GtkTreeModel *model = gtk_tree_view_get_model (tree_view);
 
-  GtkTreeIter child;
-  if (!gtk_tree_model_iter_children (model, &child, iter))
+  GtkTreeIter first_child;
+  if (!gtk_tree_model_iter_children (model, &first_child, iter))
     g_return_if_reached(); /* Should always have a child when expanding!  */
 
   Dwarf_Die die;
-  if (die_tree_get_die (model, &child, &die))
+  if (die_tree_get_die (model, &first_child, &die))
     return; /* It's not just a placeholder, we're done.  */
 
   if (!die_tree_get_die (model, iter, &die))
     g_return_if_reached ();
 
   /* Fill in the real children.  */
+  DwarvishSession *session = g_object_get_data (G_OBJECT (model),
+                                                "DwarvishSession");
   GtkTreeStore *store = GTK_TREE_STORE (model);
-  if (dwarf_child (&die, &die) == 0)
-    {
-      die_tree_set_die (store, &child, &die);
-      while (dwarf_siblingof (&die, &die) == 0)
-        {
-          gtk_tree_store_insert_after (store, &child, iter, &child);
-          die_tree_set_die (store, &child, &die);
-        }
-    }
+  GtkTreeIter child = first_child;
+  expand_die_children (store, iter, &child,
+                       &die, session->explicit_imports);
+
+  /* Remove the placeholder.
+   * NB: This could leave no children if we only had empty imports.  */
+  gtk_tree_store_remove (store, &first_child);
 }
 
 
@@ -169,9 +198,11 @@ die_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
 
 
 gboolean
-die_tree_view_render (GtkTreeView *view, Dwarf *dwarf, gboolean types)
+die_tree_view_render (GtkTreeView *view, DwarvishSession *session,
+                      gboolean types)
 {
   GtkTreeStore *store = gtk_tree_store_new (1, G_TYPE_DWARF_DIE);
+  g_object_set_data (G_OBJECT (store), "DwarvishSession", session);
 
   uint64_t type_signature;
   uint64_t *ptype_signature = types ? &type_signature : NULL;
@@ -179,20 +210,24 @@ die_tree_view_render (GtkTreeView *view, Dwarf *dwarf, gboolean types)
 
   gboolean empty = TRUE;
   size_t cuhl;
-  Dwarf_Off noff, off = 0;
   GtkTreeIter iter, *sibling = NULL;
-  while (dwarf_next_unit (dwarf, off, &noff, &cuhl, NULL, NULL, NULL, NULL,
-                          ptype_signature, NULL) == 0)
+  for (Dwarf_Off noff, off = 0;
+       dwarf_next_unit (session->dwarf, off, &noff, &cuhl, NULL,
+                        NULL, NULL, NULL, ptype_signature, NULL) == 0;
+       off = noff)
     {
       Dwarf_Die die;
-      if (offdie (dwarf, off + cuhl, &die) == NULL)
+      if (offdie (session->dwarf, off + cuhl, &die) == NULL)
+        continue;
+
+      if (!session->explicit_imports &&
+          dwarf_tag (&die) == DW_TAG_partial_unit)
         continue;
 
       empty = FALSE;
       gtk_tree_store_insert_after (store, &iter, NULL, sibling);
       die_tree_set_die (store, &iter, &die);
       sibling = &iter;
-      off = noff;
     }
 
   gtk_tree_view_set_model (view, GTK_TREE_MODEL (store));
