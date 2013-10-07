@@ -39,14 +39,38 @@ attr_tree_get_attribute (GtkTreeModel *model, GtkTreeIter *iter,
 }
 
 
+/* Print special cases of data attributes.  */
+static const char *
+attr_value_data_string (Dwarf_Attribute *attr, char **alloc)
+{
+  Dwarf_Word udata;
+  if (dwarf_formudata (attr, &udata) != 0)
+    return NULL;
+
+  switch (dwarf_whatattr (attr))
+    {
+    case DW_AT_language:
+      return DW_LANG__string_hex (udata, alloc);
+
+    default:
+      break;
+    }
+
+  /* Print signed and small-unsigned constants in decimal.  */
+  if (udata < 0x10000 || dwarf_whatform (attr) == DW_FORM_sdata)
+    *alloc = g_strdup_printf ("%" G_GINT64_FORMAT, udata);
+  else
+    *alloc = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", udata);
+  return *alloc;
+}
+
+
 static const char *
 attr_value_string (Dwarf_Attribute *attr, char **alloc)
 {
   bool flag;
   Dwarf_Die ref;
   Dwarf_Addr addr;
-  Dwarf_Sword sword;
-  Dwarf_Word word;
 
   switch (dwarf_whatform (attr))
     {
@@ -86,31 +110,14 @@ attr_value_string (Dwarf_Attribute *attr, char **alloc)
         }
       return NULL;
 
-    case DW_FORM_sdata:
-      if (dwarf_formsdata (attr, &sword) == 0)
-        {
-          *alloc = g_strdup_printf ("%" G_GINT64_FORMAT, sword);
-          return *alloc;
-        }
-      return NULL;
-
     case DW_FORM_sec_offset:
     case DW_FORM_udata:
     case DW_FORM_data8:
     case DW_FORM_data4:
     case DW_FORM_data2:
     case DW_FORM_data1:
-      /* NOTE: readelf does extra parsing on these (and sdata too)
-       * according to the known values for specific attributes.  */
-      if (dwarf_formudata (attr, &word) == 0)
-        {
-          if (word < 0x10000) /* Print smallish constants in decimal.  */
-            *alloc = g_strdup_printf ("%" G_GUINT64_FORMAT, word);
-          else
-            *alloc = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", word);
-          return *alloc;
-        }
-      return NULL;
+    case DW_FORM_sdata:
+      return attr_value_data_string (attr, alloc);
 
     case DW_FORM_flag:
       if (dwarf_formflag (attr, &flag) == 0)
