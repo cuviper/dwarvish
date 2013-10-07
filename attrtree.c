@@ -20,37 +20,71 @@
 #include "util.h"
 
 
-G_DEFINE_SLICED_COPY_FREE (Dwarf_Attribute, dwarf_attr);
+static G_DEFINE_SLICED_COPY (Dwarf_Attribute, dwarf_attr);
+static G_DEFINE_SLICED_FREE (Dwarf_Attribute, dwarf_attr);
 static G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Attribute, dwarf_attr);
 #define G_TYPE_DWARF_ATTR (dwarf_attr_get_type ())
 
 
 static gboolean
-attr_tree_get_attribute (GtkTreeModel *model, GtkTreeIter *iter,
-                         Dwarf_Attribute *attr_mem)
+attr_tree_get_die_attribute (GtkTreeModel *model, GtkTreeIter *iter,
+                             Dwarf_Die *die_mem, Dwarf_Attribute *attr_mem)
 {
+  Dwarf_Die *die = NULL;
   Dwarf_Attribute *attr = NULL;
-  gtk_tree_model_get (model, iter, 0, &attr, -1);
-  if (attr == NULL)
-    return FALSE;
-  *attr_mem = *attr;
+  gtk_tree_model_get (model, iter, 0, &die, 1, &attr, -1);
+
+  gboolean ret = FALSE;
+  if (die != NULL && attr != NULL)
+    {
+      *die_mem = *die;
+      *attr_mem = *attr;
+      ret = TRUE;
+    }
+
+  dwarf_die_free (die);
   dwarf_attr_free (attr);
-  return TRUE;
+  return ret;
+}
+
+
+/* Like dwarf_decl_file for an already known DW_AT_decl_file.  This might be
+ * a bit paranoid, but it's more directly showing what's specified.  */
+static const char *
+dwarf_die_file_idx (Dwarf_Die *die, size_t idx)
+{
+  Dwarf_Die cu;
+  Dwarf_Files *files;
+  if (dwarf_diecu (die, &cu, NULL, NULL) != NULL &&
+      dwarf_getsrcfiles (&cu, &files, NULL) == 0)
+    return dwarf_filesrc (files, idx, NULL, NULL);
+  return NULL;
 }
 
 
 /* Print special cases of data attributes.  */
 static const char *
-attr_value_data_string (Dwarf_Attribute *attr, char **alloc)
+attr_value_data_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
 {
   Dwarf_Word udata;
   if (dwarf_formudata (attr, &udata) != 0)
     return NULL;
 
+  const char *str = NULL;
+
   switch (dwarf_whatattr (attr))
     {
     case DW_AT_language:
       return DW_LANG__string_hex (udata, alloc);
+
+    case DW_AT_decl_file:
+      str = dwarf_die_file_idx (die, udata);
+      if (str != NULL)
+        {
+          *alloc = g_strdup_printf ("[%" G_GUINT64_FORMAT "] %s", udata, str);
+          return *alloc;
+        }
+      break;
 
     default:
       break;
@@ -66,7 +100,7 @@ attr_value_data_string (Dwarf_Attribute *attr, char **alloc)
 
 
 static const char *
-attr_value_string (Dwarf_Attribute *attr, char **alloc)
+attr_value_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
 {
   bool flag;
   Dwarf_Die ref;
@@ -117,7 +151,7 @@ attr_value_string (Dwarf_Attribute *attr, char **alloc)
     case DW_FORM_data2:
     case DW_FORM_data1:
     case DW_FORM_sdata:
-      return attr_value_data_string (attr, alloc);
+      return attr_value_data_string (die, attr, alloc);
 
     case DW_FORM_flag:
       if (dwarf_formflag (attr, &flag) == 0)
@@ -142,6 +176,7 @@ attr_value_string (Dwarf_Attribute *attr, char **alloc)
 
 typedef struct _AttrCallback
 {
+  Dwarf_Die *die;
   GtkTreeStore *store;
   GtkTreeIter *parent;
   GtkTreeIter *sibling;
@@ -155,13 +190,15 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
   AttrCallback *data = (AttrCallback *)user_data;
   gtk_tree_store_insert_after (data->store, &data->iter,
                                data->parent, data->sibling);
-  gtk_tree_store_set (data->store, &data->iter, 0, attr, -1);
+  gtk_tree_store_set (data->store, &data->iter,
+                      0, data->die, 1, attr, -1);
 
   Dwarf_Die ref;
   if (dwarf_whatattr (attr) != DW_AT_sibling
       && dwarf_formref_die (attr, &ref) != NULL)
     {
       AttrCallback cbdata = *data;
+      cbdata.die = &ref;
       cbdata.parent = &data->iter;
       cbdata.sibling = NULL;
       dwarf_getattrs (&ref, getattrs_callback, &cbdata, 0);
@@ -188,6 +225,7 @@ signal_die_tree_selection_changed (GtkTreeSelection *selection,
     return;
 
   AttrCallback cbdata;
+  cbdata.die = &die;
   cbdata.store = store;
   cbdata.parent = NULL;
   cbdata.sibling = NULL;
@@ -213,12 +251,13 @@ signal_attr_tree_query_tooltip (GtkWidget *widget,
   gtk_tree_view_set_tooltip_row (view, tooltip, path);
   gtk_tree_path_free (path);
 
+  Dwarf_Die die;
   Dwarf_Attribute attr;
-  if (!attr_tree_get_attribute (model, &iter, &attr))
+  if (!attr_tree_get_die_attribute (model, &iter, &die, &attr))
     g_return_val_if_reached (FALSE);
 
   gchar *alloc = NULL;
-  const gchar *value = attr_value_string (&attr, &alloc);
+  const gchar *value = attr_value_string (&die, &attr, &alloc);
   gtk_tooltip_set_text (tooltip, value);
   if (alloc != NULL)
     g_free (alloc);
@@ -240,8 +279,9 @@ attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
                      GtkCellRenderer *cell, GtkTreeModel *model,
                      GtkTreeIter *iter, gpointer data)
 {
+  Dwarf_Die die;
   Dwarf_Attribute attr;
-  if (!attr_tree_get_attribute (model, iter, &attr))
+  if (!attr_tree_get_die_attribute (model, iter, &die, &attr))
     g_return_if_reached ();
 
   gchar *alloc = NULL;
@@ -257,7 +297,7 @@ attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
       break;
 
     case ATTR_TREE_COL_VALUE:
-      fixed = attr_value_string (&attr, &alloc);
+      fixed = attr_value_string (&die, &attr, &alloc);
       break;
     }
 
@@ -286,7 +326,8 @@ attr_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
 gboolean
 attr_tree_view_render (GtkTreeView *attrtree)
 {
-  GtkTreeStore *store = gtk_tree_store_new (1, G_TYPE_DWARF_ATTR);
+  GtkTreeStore *store = gtk_tree_store_new (2, G_TYPE_DWARF_DIE,
+                                            G_TYPE_DWARF_ATTR);
 
   gtk_tree_view_set_model (attrtree, GTK_TREE_MODEL (store));
   g_object_unref (store); /* The view keeps its own reference.  */

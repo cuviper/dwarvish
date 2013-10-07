@@ -14,13 +14,15 @@
 #include <glib.h>
 
 
-#define G_DEFINE_SLICED_COPY_FREE(TypeName, type_name)  \
-static gpointer                                         \
+#define G_DEFINE_SLICED_COPY(TypeName, type_name)       \
+gpointer                                                \
 type_name##_copy (gpointer boxed)                       \
 {                                                       \
   return g_slice_dup (TypeName, boxed);                 \
-}                                                       \
-static void                                             \
+}
+
+#define G_DEFINE_SLICED_FREE(TypeName, type_name)       \
+void                                                    \
 type_name##_free (gpointer boxed)                       \
 {                                                       \
   g_slice_free (TypeName, boxed);                       \

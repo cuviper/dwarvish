@@ -18,9 +18,9 @@
 #include "util.h"
 
 
-G_DEFINE_SLICED_COPY_FREE (Dwarf_Die, dwarf_die);
-static G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Die, dwarf_die);
-#define G_TYPE_DWARF_DIE (dwarf_die_get_type ())
+static G_DEFINE_SLICED_COPY (Dwarf_Die, dwarf_die);
+G_DEFINE_SLICED_FREE (Dwarf_Die, dwarf_die);
+G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Die, dwarf_die);
 
 
 gboolean
