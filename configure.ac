@@ -11,9 +11,12 @@ AC_PROG_CC
 
 # Checks for libraries.
 AC_CHECK_LIB([dw], [dwarf_next_unit], [],
-             [AC_MSG_FAILURE([elfutils libdw 0.148+ is required])])
-AM_PATH_GLIB_2_0([2.0.0], [], [AC_MSG_FAILURE([glib 2.0+ is required])], [gmodule])
-AM_PATH_GTK_3_0([3.0.0], [], [AC_MSG_FAILURE([gtk 3.0+ is required])])
+             [AC_MSG_FAILURE([elfutils libdw >= 0.148 is required])])
+
+# NB: glib-2.32 is required for glib-compile-resources.
+# That's around gtk+ 3.4, so that might as well be the baseline.
+AM_PATH_GLIB_2_0([2.32.0], [], [AC_MSG_FAILURE([glib >= 2.32 is required])], [gmodule])
+AM_PATH_GTK_3_0([3.4.0], [], [AC_MSG_FAILURE([gtk+ >= 3.4 is required])])
 
 # Checks for header files.
 AC_CHECK_HEADER([dwarf.h], [], [AC_MSG_FAILURE([dwarf.h is required])])

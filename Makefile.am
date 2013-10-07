@@ -1,6 +1,12 @@
 AM_CFLAGS = -std=gnu99 -Werror -Wall -Wextra
 AM_CSCOPEFLAGS = $(GTK_CFLAGS)
 
+# Assert the configured minimum versions as maximums too.
+VERSION_CFLAGS = -DGLIB_VERSION_MIN_REQUIRED=GLIB_VERSION_2_32	\
+		 -DGLIB_VERSION_MAX_ALLOWED=GLIB_VERSION_2_32	\
+		 -DGDK_VERSION_MIN_REQUIRED=GDK_VERSION_3_4	\
+		 -DGDK_VERSION_MAX_ALLOWED=GDK_VERSION_3_4
+
 bin_PROGRAMS = dwarvish
 dwarvish_SOURCES = attrtree.c attrtree.h \
 		   dietree.c dietree.h \
@@ -8,7 +14,7 @@ dwarvish_SOURCES = attrtree.c attrtree.h \
 		   loaddwfl.c loaddwfl.h \
 		   main.c session.h util.h
 nodist_dwarvish_SOURCES = known-dwarf.h dwarvish_resources.c
-dwarvish_CFLAGS = $(AM_CFLAGS) $(GTK_CFLAGS) $(GLIB_CFLAGS)
+dwarvish_CFLAGS = $(AM_CFLAGS) $(GTK_CFLAGS) $(GLIB_CFLAGS) $(VERSION_CFLAGS)
 dwarvish_LDADD = $(GTK_LIBS) $(GLIB_LIBS)
 
 dwarvish_RESOURCES = application.ui die.ui

@@ -22,9 +22,10 @@
 #include "loaddwfl.h"
 
 
-#ifndef GDK_VERSION_3_10
+/* Like the gtk_builder_new_from_resource in 3.10, but this project's
+ * GDK_VERSION_MAX_ALLOWED is not that high yet.  */
 static GtkBuilder *
-gtk_builder_new_from_resource (const gchar *resource_path)
+load_gtk_builder (const gchar *resource_path)
 {
   GError *error = NULL;
   GtkBuilder *builder = gtk_builder_new ();
@@ -32,13 +33,12 @@ gtk_builder_new_from_resource (const gchar *resource_path)
     g_error ("ERROR: %s\n", error->message);
   return builder;
 }
-#endif
 
 
 static GtkWidget *
 create_die_widget (DwarvishSession *session, gboolean types)
 {
-  GtkBuilder *builder = gtk_builder_new_from_resource ("/dwarvish/die.ui");
+  GtkBuilder *builder = load_gtk_builder ("/dwarvish/die.ui");
 
   GtkWidget *widget = GTK_WIDGET (gtk_builder_get_object (builder, "widget"));
   GtkTreeView *dieview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "dietreeview"));
@@ -61,7 +61,7 @@ create_die_widget (DwarvishSession *session, gboolean types)
 static GtkWidget *
 create_main_window (DwarvishSession *session)
 {
-  GtkBuilder *builder = gtk_builder_new_from_resource ("/dwarvish/application.ui");
+  GtkBuilder *builder = load_gtk_builder ("/dwarvish/application.ui");
 
   GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
   GtkNotebook *notebook = GTK_NOTEBOOK (gtk_builder_get_object (builder, "notebook"));
