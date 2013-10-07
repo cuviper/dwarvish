@@ -10,7 +10,8 @@ AM_MAINTAINER_MODE
 AC_PROG_CC
 
 # Checks for libraries.
-AC_CHECK_LIB([dw], [dwfl_begin], [], [AC_MSG_FAILURE([elfutils libdw is required])])
+AC_CHECK_LIB([dw], [dwarf_next_unit], [],
+             [AC_MSG_FAILURE([elfutils libdw 0.148+ is required])])
 AM_PATH_GLIB_2_0([2.0.0], [], [AC_MSG_FAILURE([glib 2.0+ is required])], [gmodule])
 AM_PATH_GTK_3_0([3.0.0], [], [AC_MSG_FAILURE([gtk 3.0+ is required])])
 
