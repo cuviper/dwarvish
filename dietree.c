@@ -165,9 +165,7 @@ die_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
       break;
 
     case DIE_TREE_COL_TAG:
-      fixed = DW_TAG__string (dwarf_tag (&die));
-      if (G_UNLIKELY (fixed == NULL))
-        alloc = g_strdup_printf ("%#x", dwarf_tag (&die));
+      fixed = DW_TAG__string_hex (dwarf_tag (&die), &alloc);
       break;
 
     case DIE_TREE_COL_NAME:

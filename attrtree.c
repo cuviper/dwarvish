@@ -242,15 +242,11 @@ attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
   switch (GPOINTER_TO_INT (data))
     {
     case ATTR_TREE_COL_ATTRIBUTE:
-      fixed = DW_AT__string (dwarf_whatattr (&attr));
-      if (G_UNLIKELY (fixed == NULL))
-        alloc = g_strdup_printf ("%#x", dwarf_whatattr (&attr));
+      fixed = DW_AT__string_hex (dwarf_whatattr (&attr), &alloc);
       break;
 
     case ATTR_TREE_COL_FORM:
-      fixed = DW_FORM__string (dwarf_whatform (&attr));
-      if (G_UNLIKELY (fixed == NULL))
-        alloc = g_strdup_printf ("%#x", dwarf_whatform (&attr));
+      fixed = DW_FORM__string_hex (dwarf_whatform (&attr), &alloc);
       break;
 
     case ATTR_TREE_COL_VALUE:
@@ -258,7 +254,7 @@ attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
       break;
     }
 
-  g_object_set (cell, "text", alloc ?: fixed, NULL);
+  g_object_set (cell, "text", fixed, NULL);
   if (alloc != NULL)
     g_free (alloc);
 }

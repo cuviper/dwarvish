@@ -14,9 +14,15 @@
 #include <glib.h>
 #include "known-dwarf.h"
 
-#define ONE_KNOWN_DW_SET(set) \
-  G_GNUC_INTERNAL const char *DW_##set##__string (int code);
+#define ONE_KNOWN_DW_SET(set)                           \
+  G_GNUC_INTERNAL const char *                          \
+    DW_##set##__string (int code);                      \
+  G_GNUC_INTERNAL const char *                          \
+    DW_##set##__string_hex (int code, char **alloc)     \
+    __attribute__ ((nonnull (2)));
+
 ALL_KNOWN_DW_SETS
+
 #undef ONE_KNOWN_DW_SET
 
 #endif /* __DW_STRING_H__ */
