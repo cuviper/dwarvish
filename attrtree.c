@@ -74,17 +74,48 @@ attr_value_data_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
 
   switch (dwarf_whatattr (attr))
     {
+    case DW_AT_call_file:
+    case DW_AT_decl_file:
+      str = dwarf_die_file_idx (die, udata);
+      if (str)
+        return str;
+      break;
+
+    case DW_AT_accessibility:
+      return DW_ACCESS__string_hex (udata, alloc);
+
+    case DW_AT_encoding:
+      return DW_ATE__string_hex (udata, alloc);
+
+    case DW_AT_calling_convention:
+      return DW_CC__string_hex (udata, alloc);
+
+    case DW_AT_decimal_sign:
+      return DW_DS__string_hex (udata, alloc);
+
+    case DW_AT_discr_value:
+      return DW_DSC__string_hex (udata, alloc);
+
+    case DW_AT_identifier_case:
+      return DW_ID__string_hex (udata, alloc);
+
+    case DW_AT_endianity:
+      return DW_END__string_hex (udata, alloc);
+
+    case DW_AT_inline:
+      return DW_INL__string_hex (udata, alloc);
+
     case DW_AT_language:
       return DW_LANG__string_hex (udata, alloc);
 
-    case DW_AT_decl_file:
-      str = dwarf_die_file_idx (die, udata);
-      if (str != NULL)
-        {
-          *alloc = g_strdup_printf ("[%" G_GUINT64_FORMAT "] %s", udata, str);
-          return *alloc;
-        }
-      break;
+    case DW_AT_ordering:
+      return DW_ORD__string_hex (udata, alloc);
+
+    case DW_AT_virtuality:
+      return DW_VIRTUALITY__string_hex (udata, alloc);
+
+    case DW_AT_visibility:
+      return DW_VIS__string_hex (udata, alloc);
 
     default:
       break;
@@ -93,8 +124,23 @@ attr_value_data_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
   /* Print signed and small-unsigned constants in decimal.  */
   if (udata < 0x10000 || dwarf_whatform (attr) == DW_FORM_sdata)
     *alloc = g_strdup_printf ("%" G_GINT64_FORMAT, udata);
+
   else
     *alloc = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", udata);
+
+  return *alloc;
+}
+
+
+static const char *
+attr_value_sec_offset_string (Dwarf_Attribute *attr, char **alloc)
+{
+  Dwarf_Word udata;
+  if (dwarf_formudata (attr, &udata) != 0)
+    return NULL;
+
+  /* For now, just print section offsets as a [ref].  */
+  *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x]", udata);
   return *alloc;
 }
 
@@ -145,6 +191,8 @@ attr_value_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
       return NULL;
 
     case DW_FORM_sec_offset:
+      return attr_value_sec_offset_string (attr, alloc);
+
     case DW_FORM_udata:
     case DW_FORM_data8:
     case DW_FORM_data4:
