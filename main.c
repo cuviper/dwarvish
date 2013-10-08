@@ -8,11 +8,14 @@
  * version 3 of the License, or (at your option) any later version.
  */
 
+#define _GNU_SOURCE 1
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <gtk/gtk.h>
 
@@ -58,6 +61,24 @@ create_die_widget (DwarvishSession *session, gboolean types)
 }
 
 
+G_MODULE_EXPORT void
+signal_label_paired_visibility (GObject *gobject,
+                                G_GNUC_UNUSED GParamSpec *pspec,
+                                gpointer    user_data)
+{
+  gboolean visible = strlen (gtk_label_get_label (GTK_LABEL (gobject))) != 0;
+
+  gtk_widget_set_visible (GTK_WIDGET (gobject), visible);
+  gtk_widget_set_no_show_all (GTK_WIDGET (gobject), !visible);
+
+  if (user_data)
+    {
+      gtk_widget_set_visible (GTK_WIDGET (user_data), visible);
+      gtk_widget_set_no_show_all (GTK_WIDGET (user_data), !visible);
+    }
+}
+
+
 static GtkWidget *
 create_main_window (DwarvishSession *session)
 {
@@ -72,10 +93,6 @@ create_main_window (DwarvishSession *session)
   gchar *title = g_strdup_printf ("%s - %s", session->basename, PACKAGE_NAME);
   gtk_window_set_title (GTK_WINDOW (window), title);
   g_free (title);
-
-  /* Update the file path labels.  */
-  gtk_label_set_text (mainfile, session->mainfile);
-  gtk_label_set_text (debugfile, session->debugfile);
 
   /* Attach the .debug_info view.  */
   GtkWidget *die_widget = create_die_widget (session, FALSE);
@@ -95,6 +112,11 @@ create_main_window (DwarvishSession *session)
 
   gtk_builder_connect_signals (builder, NULL);
   g_object_unref (builder);
+
+  /* Update the file path labels.  */
+  gtk_label_set_text (mainfile, session->mainfile);
+  gtk_label_set_text (debugfile, session->debugfile);
+
   return window;
 }
 
@@ -132,11 +154,13 @@ session_init_dwarf (DwarvishSession *session)
   if (session->dwarf == NULL)
     exit_message ("No DWARF found for the target.", FALSE);
 
+  const char *mainfile, *debugfile;
   const char *modname = dwfl_module_info (session->dwflmod,
                                           NULL, NULL, NULL, NULL, NULL,
-                                          &session->mainfile,
-                                          &session->debugfile);
+                                          &mainfile, &debugfile);
   session->basename = g_path_get_basename (modname);
+  session->mainfile = canonicalize_file_name (mainfile);
+  session->debugfile = canonicalize_file_name (debugfile);
 }
 
 
@@ -150,6 +174,8 @@ session_end (DwarvishSession *session)
   dwfl_end (session->dwfl);
 
   g_free (session->basename);
+  free (session->mainfile);
+  free (session->debugfile);
 
   g_free (session);
 }

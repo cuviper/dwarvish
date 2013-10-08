@@ -30,8 +30,8 @@ typedef struct _DwarvishSession
 
   /* Additional metadata.  */
   gchar *basename;
-  const gchar *mainfile;
-  const gchar *debugfile;
+  gchar *mainfile;
+  gchar *debugfile;
 } DwarvishSession;
 
 

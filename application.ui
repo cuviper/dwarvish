@@ -61,6 +61,7 @@
                 <property name="yalign">0</property>
                 <property name="label" translatable="yes">/path/to/file.debug</property>
                 <property name="wrap">True</property>
+                <signal name="notify::label" handler="signal_label_paired_visibility" object="debugfile-label" swapped="no"/>
               </object>
               <packing>
                 <property name="left_attach">1</property>
@@ -77,6 +78,7 @@
                 <property name="yalign">0</property>
                 <property name="label" translatable="yes">/path/to/file</property>
                 <property name="wrap">True</property>
+                <signal name="notify::label" handler="signal_label_paired_visibility" object="mainfile-label" swapped="no"/>
               </object>
               <packing>
                 <property name="left_attach">1</property>
