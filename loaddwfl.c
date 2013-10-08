@@ -13,6 +13,7 @@
 #endif
 
 #include <glib.h>
+#include <string.h>
 
 #include "loaddwfl.h"
 
@@ -107,6 +108,35 @@ get_first_module (Dwfl *dwfl)
   Dwfl_Module *mod = NULL;
   dwfl_getmodules (dwfl, get_first_module_cb, &mod, 0);
   return mod;
+}
+
+
+const char *
+get_debugaltfile (Dwarf *dwarf)
+{
+  Elf *elf = dwarf_getelf (dwarf);
+  size_t shstrndx;
+  Elf_Scn *scn = NULL;
+
+  elf_getshdrstrndx (elf, &shstrndx);
+
+  while ((scn = elf_nextscn (elf, scn)))
+    {
+      GElf_Shdr shdr;
+      if ((gelf_getshdr (scn, &shdr) == NULL)
+          || (shdr.sh_type != SHT_PROGBITS))
+        continue;
+
+      const char* sh_name = elf_strptr (elf, shstrndx, shdr.sh_name);
+      if (strcmp (sh_name, ".gnu_debugaltlink") != 0)
+        continue;
+
+      Elf_Data *data = elf_getdata (scn, NULL);
+      if (data != NULL)
+        return data->d_buf;
+    }
+
+  return NULL;
 }
 
 

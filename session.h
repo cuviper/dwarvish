@@ -32,6 +32,7 @@ typedef struct _DwarvishSession
   gchar *basename;
   gchar *mainfile;
   gchar *debugfile;
+  gchar *debugaltfile;
 } DwarvishSession;
 
 

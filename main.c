@@ -79,6 +79,14 @@ signal_label_paired_visibility (GObject *gobject,
 }
 
 
+static void
+set_builder_label (GtkBuilder *builder, const char *name, const char *value)
+{
+  GtkLabel *label = GTK_LABEL (gtk_builder_get_object (builder, name));
+  gtk_label_set_text (label, value);
+}
+
+
 static GtkWidget *
 create_main_window (DwarvishSession *session)
 {
@@ -86,8 +94,6 @@ create_main_window (DwarvishSession *session)
 
   GtkWidget *window = GTK_WIDGET (gtk_builder_get_object (builder, "window"));
   GtkNotebook *notebook = GTK_NOTEBOOK (gtk_builder_get_object (builder, "notebook"));
-  GtkLabel *mainfile = GTK_LABEL (gtk_builder_get_object (builder, "mainfile"));
-  GtkLabel *debugfile = GTK_LABEL (gtk_builder_get_object (builder, "debugfile"));
 
   /* Update the title with our module.  */
   gchar *title = g_strdup_printf ("%s - %s", session->basename, PACKAGE_NAME);
@@ -111,12 +117,13 @@ create_main_window (DwarvishSession *session)
     }
 
   gtk_builder_connect_signals (builder, NULL);
-  g_object_unref (builder);
 
   /* Update the file path labels.  */
-  gtk_label_set_text (mainfile, session->mainfile);
-  gtk_label_set_text (debugfile, session->debugfile);
+  set_builder_label (builder, "mainfile", session->mainfile);
+  set_builder_label (builder, "debugfile", session->debugfile);
+  set_builder_label (builder, "debugaltfile", session->debugaltfile);
 
+  g_object_unref (builder);
   return window;
 }
 
@@ -161,6 +168,23 @@ session_init_dwarf (DwarvishSession *session)
   session->basename = g_path_get_basename (modname);
   session->mainfile = canonicalize_file_name (mainfile);
   session->debugfile = canonicalize_file_name (debugfile);
+
+  const char *debugaltfile = get_debugaltfile (session->dwarf);
+  if (debugaltfile != NULL)
+    {
+      if (g_path_is_absolute (debugaltfile))
+        session->debugaltfile = canonicalize_file_name (debugaltfile);
+      else
+        {
+          /* If not absolute, the path is relative the file with the Dwarf.  */
+          const char *file = session->debugfile ?: session->mainfile;
+          gchar *dirname = g_path_get_dirname (file);
+          gchar *altfile = g_build_filename (dirname, debugaltfile, NULL);
+          session->debugaltfile = canonicalize_file_name (altfile);
+          g_free (dirname);
+          g_free (altfile);
+        }
+    }
 }
 
 
@@ -176,6 +200,7 @@ session_end (DwarvishSession *session)
   g_free (session->basename);
   free (session->mainfile);
   free (session->debugfile);
+  free (session->debugaltfile);
 
   g_free (session);
 }

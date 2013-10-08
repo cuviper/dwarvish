@@ -23,6 +23,9 @@ Dwfl *load_kernel_dwfl (const char *kernel, const char *module);
 G_GNUC_INTERNAL
 Dwfl_Module *get_first_module (Dwfl *dwfl);
 
+G_GNUC_INTERNAL
+const char *get_debugaltfile (Dwarf *dwarf);
+
 #endif /* _LOADDWFL_H_ */
 
 
