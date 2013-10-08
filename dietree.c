@@ -18,6 +18,16 @@
 #include "util.h"
 
 
+enum
+{
+  DIE_TREE_COL_OFFSET = 0,
+  DIE_TREE_COL_TAG,
+  DIE_TREE_COL_NAME,
+  DIE_TREE_INT_DIE,
+  DIE_TREE_N_COLUMNS
+};
+
+
 static G_DEFINE_SLICED_COPY (Dwarf_Die, dwarf_die);
 G_DEFINE_SLICED_FREE (Dwarf_Die, dwarf_die);
 G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Die, dwarf_die);
@@ -28,7 +38,7 @@ die_tree_get_die (GtkTreeModel *model, GtkTreeIter *iter,
                   Dwarf_Die *die_mem)
 {
   Dwarf_Die *die = NULL;
-  gtk_tree_model_get (model, iter, 0, &die, -1);
+  gtk_tree_model_get (model, iter, DIE_TREE_INT_DIE, &die, -1);
   if (die == NULL)
     return FALSE;
   *die_mem = *die;
@@ -40,7 +50,25 @@ die_tree_get_die (GtkTreeModel *model, GtkTreeIter *iter,
 static void
 die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 {
-  gtk_tree_store_set (store, iter, 0, die, -1);
+  gchar *offset = g_strdup_printf ("%" G_GINT64_MODIFIER "x",
+                                   dwarf_dieoffset (die));
+
+  gchar *tag_alloc = NULL;
+  const gchar *tag = DW_TAG__string_hex (dwarf_tag (die), &tag_alloc);
+
+  const gchar *name = dwarf_diename (die);
+
+  gtk_tree_store_set (store, iter,
+                      DIE_TREE_COL_OFFSET, offset,
+                      DIE_TREE_COL_TAG, tag,
+                      DIE_TREE_COL_NAME, name,
+                      DIE_TREE_INT_DIE, die,
+                      -1);
+
+  g_free (offset);
+  if (tag_alloc != NULL)
+    g_free (tag_alloc);
+
   if (dwarf_haschildren (die))
     {
       GtkTreeIter placeholder;
@@ -110,89 +138,17 @@ signal_die_tree_test_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
 }
 
 
-G_MODULE_EXPORT gboolean
-signal_die_tree_query_tooltip (GtkWidget *widget,
-                               gint x, gint y, gboolean keyboard_mode,
-                               GtkTooltip *tooltip,
-                               G_GNUC_UNUSED gpointer user_data)
-{
-  GtkTreeView *view = GTK_TREE_VIEW (widget);
-
-  GtkTreeModel *model;
-  GtkTreePath *path;
-  GtkTreeIter iter;
-  if (!gtk_tree_view_get_tooltip_context (view, &x, &y, keyboard_mode,
-                                          &model, &path, &iter))
-    return FALSE;
-
-  gtk_tree_view_set_tooltip_row (view, tooltip, path);
-  gtk_tree_path_free (path);
-
-  Dwarf_Die die;
-  if (!die_tree_get_die (model, &iter, &die))
-    g_return_val_if_reached (FALSE);
-
-  const gchar *name = dwarf_diename (&die);
-  gtk_tooltip_set_text (tooltip, name);
-
-  return (name != NULL);
-}
-
-
-enum
-{
-  DIE_TREE_COL_OFFSET,
-  DIE_TREE_COL_TAG,
-  DIE_TREE_COL_NAME,
-};
-
-
 static void
-die_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
-                    GtkCellRenderer *cell, GtkTreeModel *model,
-                    GtkTreeIter *iter, gpointer data)
-{
-  Dwarf_Die die;
-  if (!die_tree_get_die (model, iter, &die))
-    g_return_if_reached ();
-
-  gchar *alloc = NULL;
-  const gchar *fixed = NULL;
-  switch (GPOINTER_TO_INT (data))
-    {
-    case DIE_TREE_COL_OFFSET:
-      alloc = g_strdup_printf ("%" G_GINT64_MODIFIER "x",
-                               dwarf_dieoffset (&die));
-      break;
-
-    case DIE_TREE_COL_TAG:
-      fixed = DW_TAG__string_hex (dwarf_tag (&die), &alloc);
-      break;
-
-    case DIE_TREE_COL_NAME:
-      fixed = dwarf_diename (&die);
-      break;
-    }
-
-  g_object_set (cell, "text", alloc ?: fixed, NULL);
-  if (alloc != NULL)
-    g_free (alloc);
-}
-
-
-static void
-die_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
+die_tree_render_column (GtkTreeView *view, gint column)
 {
   GtkTreeViewColumn *col = gtk_tree_view_get_column (view, column);
   GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
   g_object_set (renderer, "font", "monospace 9", NULL);
-  if (virtual_column == DIE_TREE_COL_NAME)
+  if (column == DIE_TREE_COL_NAME)
     g_object_set (renderer, "ellipsize", PANGO_ELLIPSIZE_END, NULL);
 
   gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_set_cell_data_func (col, renderer, die_tree_cell_data,
-                                           GINT_TO_POINTER (virtual_column),
-                                           NULL);
+  gtk_tree_view_column_add_attribute (col, renderer, "text", column);
 }
 
 
@@ -200,7 +156,11 @@ gboolean
 die_tree_view_render (GtkTreeView *view, DwarvishSession *session,
                       gboolean types)
 {
-  GtkTreeStore *store = gtk_tree_store_new (1, G_TYPE_DWARF_DIE);
+  GtkTreeStore *store = gtk_tree_store_new (DIE_TREE_N_COLUMNS,
+                                            G_TYPE_STRING,
+                                            G_TYPE_STRING,
+                                            G_TYPE_STRING,
+                                            G_TYPE_DWARF_DIE);
   g_object_set_data (G_OBJECT (store), "DwarvishSession", session);
 
   uint64_t type_signature;
@@ -232,9 +192,9 @@ die_tree_view_render (GtkTreeView *view, DwarvishSession *session,
   gtk_tree_view_set_model (view, GTK_TREE_MODEL (store));
   g_object_unref (store); /* The view keeps its own reference.  */
 
-  die_tree_render_column (view, 0, DIE_TREE_COL_OFFSET);
-  die_tree_render_column (view, 1, DIE_TREE_COL_TAG);
-  die_tree_render_column (view, 2, DIE_TREE_COL_NAME);
+  die_tree_render_column (view, DIE_TREE_COL_OFFSET);
+  die_tree_render_column (view, DIE_TREE_COL_TAG);
+  die_tree_render_column (view, DIE_TREE_COL_NAME);
 
   return !empty;
 }

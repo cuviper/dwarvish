@@ -20,32 +20,21 @@
 #include "util.h"
 
 
+enum
+{
+  ATTR_TREE_COL_ATTRIBUTE = 0,
+  ATTR_TREE_COL_FORM,
+  ATTR_TREE_COL_VALUE,
+  ATTR_TREE_INT_DIE,
+  ATTR_TREE_INT_ATTR,
+  ATTR_TREE_N_COLUMNS
+};
+
+
 static G_DEFINE_SLICED_COPY (Dwarf_Attribute, dwarf_attr);
 static G_DEFINE_SLICED_FREE (Dwarf_Attribute, dwarf_attr);
 static G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Attribute, dwarf_attr);
 #define G_TYPE_DWARF_ATTR (dwarf_attr_get_type ())
-
-
-static gboolean
-attr_tree_get_die_attribute (GtkTreeModel *model, GtkTreeIter *iter,
-                             Dwarf_Die *die_mem, Dwarf_Attribute *attr_mem)
-{
-  Dwarf_Die *die = NULL;
-  Dwarf_Attribute *attr = NULL;
-  gtk_tree_model_get (model, iter, 0, &die, 1, &attr, -1);
-
-  gboolean ret = FALSE;
-  if (die != NULL && attr != NULL)
-    {
-      *die_mem = *die;
-      *attr_mem = *attr;
-      ret = TRUE;
-    }
-
-  dwarf_die_free (die);
-  dwarf_attr_free (attr);
-  return ret;
-}
 
 
 /* Like dwarf_decl_file for an already known DW_AT_decl_file.  This might be
@@ -236,10 +225,35 @@ static int
 getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 {
   AttrCallback *data = (AttrCallback *)user_data;
+  Dwarf_Die *die = data->die;
+
+  gchar *attribute_alloc = NULL;
+  const char *attribute = DW_AT__string_hex (dwarf_whatattr (attr),
+                                             &attribute_alloc);
+
+  gchar *form_alloc = NULL;
+  const gchar *form = DW_FORM__string_hex (dwarf_whatform (attr),
+                                           &form_alloc);
+
+  gchar *value_alloc = NULL;
+  const gchar *value = attr_value_string (die, attr, &value_alloc);
+
   gtk_tree_store_insert_after (data->store, &data->iter,
                                data->parent, data->sibling);
   gtk_tree_store_set (data->store, &data->iter,
-                      0, data->die, 1, attr, -1);
+                      ATTR_TREE_COL_ATTRIBUTE, attribute,
+                      ATTR_TREE_COL_FORM, form,
+                      ATTR_TREE_COL_VALUE, value,
+                      ATTR_TREE_INT_DIE, die,
+                      ATTR_TREE_INT_ATTR, attr,
+                      -1);
+
+  if (attribute_alloc != NULL)
+    g_free (attribute_alloc);
+  if (form_alloc != NULL)
+    g_free (form_alloc);
+  if (value_alloc != NULL)
+    g_free (value_alloc);
 
   Dwarf_Die ref;
   if (dwarf_whatattr (attr) != DW_AT_sibling
@@ -281,108 +295,36 @@ signal_die_tree_selection_changed (GtkTreeSelection *selection,
 }
 
 
-G_MODULE_EXPORT gboolean
-signal_attr_tree_query_tooltip (GtkWidget *widget,
-                                gint x, gint y, gboolean keyboard_mode,
-                                GtkTooltip *tooltip,
-                                G_GNUC_UNUSED gpointer user_data)
-{
-  GtkTreeView *view = GTK_TREE_VIEW (widget);
-
-  GtkTreeModel *model;
-  GtkTreePath *path;
-  GtkTreeIter iter;
-  if (!gtk_tree_view_get_tooltip_context (view, &x, &y, keyboard_mode,
-                                          &model, &path, &iter))
-    return FALSE;
-
-  gtk_tree_view_set_tooltip_row (view, tooltip, path);
-  gtk_tree_path_free (path);
-
-  Dwarf_Die die;
-  Dwarf_Attribute attr;
-  if (!attr_tree_get_die_attribute (model, &iter, &die, &attr))
-    g_return_val_if_reached (FALSE);
-
-  gchar *alloc = NULL;
-  const gchar *value = attr_value_string (&die, &attr, &alloc);
-  gtk_tooltip_set_text (tooltip, value);
-  if (alloc != NULL)
-    g_free (alloc);
-
-  return (value != NULL);
-}
-
-
-enum
-{
-  ATTR_TREE_COL_ATTRIBUTE,
-  ATTR_TREE_COL_FORM,
-  ATTR_TREE_COL_VALUE,
-};
-
-
 static void
-attr_tree_cell_data (G_GNUC_UNUSED GtkTreeViewColumn *column,
-                     GtkCellRenderer *cell, GtkTreeModel *model,
-                     GtkTreeIter *iter, gpointer data)
-{
-  Dwarf_Die die;
-  Dwarf_Attribute attr;
-  if (!attr_tree_get_die_attribute (model, iter, &die, &attr))
-    g_return_if_reached ();
-
-  gchar *alloc = NULL;
-  const gchar *fixed = NULL;
-  switch (GPOINTER_TO_INT (data))
-    {
-    case ATTR_TREE_COL_ATTRIBUTE:
-      fixed = DW_AT__string_hex (dwarf_whatattr (&attr), &alloc);
-      break;
-
-    case ATTR_TREE_COL_FORM:
-      fixed = DW_FORM__string_hex (dwarf_whatform (&attr), &alloc);
-      break;
-
-    case ATTR_TREE_COL_VALUE:
-      fixed = attr_value_string (&die, &attr, &alloc);
-      break;
-    }
-
-  g_object_set (cell, "text", fixed, NULL);
-  if (alloc != NULL)
-    g_free (alloc);
-}
-
-
-static void
-attr_tree_render_column (GtkTreeView *view, gint column, gint virtual_column)
+attr_tree_render_column (GtkTreeView *view, gint column)
 {
   GtkTreeViewColumn *col = gtk_tree_view_get_column (view, column);
   GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
   g_object_set (renderer, "font", "monospace 9", NULL);
-  if (virtual_column == ATTR_TREE_COL_VALUE)
+  if (column == ATTR_TREE_COL_VALUE)
     g_object_set (renderer, "ellipsize", PANGO_ELLIPSIZE_END, NULL);
 
   gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_set_cell_data_func (col, renderer, attr_tree_cell_data,
-                                           GINT_TO_POINTER (virtual_column),
-                                           NULL);
+  gtk_tree_view_column_add_attribute (col, renderer, "text", column);
 }
 
 
 gboolean
 attr_tree_view_render (GtkTreeView *attrtree)
 {
-  GtkTreeStore *store = gtk_tree_store_new (2, G_TYPE_DWARF_DIE,
+  GtkTreeStore *store = gtk_tree_store_new (ATTR_TREE_N_COLUMNS,
+                                            G_TYPE_STRING,
+                                            G_TYPE_STRING,
+                                            G_TYPE_STRING,
+                                            G_TYPE_DWARF_DIE,
                                             G_TYPE_DWARF_ATTR);
 
   gtk_tree_view_set_model (attrtree, GTK_TREE_MODEL (store));
   g_object_unref (store); /* The view keeps its own reference.  */
 
-  attr_tree_render_column (attrtree, 0, ATTR_TREE_COL_ATTRIBUTE);
-  attr_tree_render_column (attrtree, 1, ATTR_TREE_COL_FORM);
-  attr_tree_render_column (attrtree, 2, ATTR_TREE_COL_VALUE);
+  attr_tree_render_column (attrtree, ATTR_TREE_COL_ATTRIBUTE);
+  attr_tree_render_column (attrtree, ATTR_TREE_COL_FORM);
+  attr_tree_render_column (attrtree, ATTR_TREE_COL_VALUE);
 
   return TRUE;
 }
