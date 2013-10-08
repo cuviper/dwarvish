@@ -52,10 +52,7 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 {
   gchar *offset = g_strdup_printf ("%" G_GINT64_MODIFIER "x",
                                    dwarf_dieoffset (die));
-
-  gchar *tag_alloc = NULL;
-  const gchar *tag = DW_TAG__string_hex (dwarf_tag (die), &tag_alloc);
-
+  gchar *tag = DW_TAG__strdup_hex (dwarf_tag (die));
   const gchar *name = dwarf_diename (die);
 
   gtk_tree_store_set (store, iter,
@@ -66,8 +63,7 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
                       -1);
 
   g_free (offset);
-  if (tag_alloc != NULL)
-    g_free (tag_alloc);
+  g_free (tag);
 
   if (dwarf_haschildren (die))
     {

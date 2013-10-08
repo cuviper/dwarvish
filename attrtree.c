@@ -52,8 +52,8 @@ dwarf_die_file_idx (Dwarf_Die *die, size_t idx)
 
 
 /* Print special cases of data attributes.  */
-static const char *
-attr_value_data_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
+static char *
+attr_value_data_string (Dwarf_Die *die, Dwarf_Attribute *attr)
 {
   Dwarf_Word udata;
   if (dwarf_formudata (attr, &udata) != 0)
@@ -66,45 +66,45 @@ attr_value_data_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
     case DW_AT_call_file:
     case DW_AT_decl_file:
       str = dwarf_die_file_idx (die, udata);
-      if (str)
-        return str;
+      if (str != NULL)
+        return g_strdup (str);
       break;
 
     case DW_AT_accessibility:
-      return DW_ACCESS__string_hex (udata, alloc);
+      return DW_ACCESS__strdup_hex (udata);
 
     case DW_AT_encoding:
-      return DW_ATE__string_hex (udata, alloc);
+      return DW_ATE__strdup_hex (udata);
 
     case DW_AT_calling_convention:
-      return DW_CC__string_hex (udata, alloc);
+      return DW_CC__strdup_hex (udata);
 
     case DW_AT_decimal_sign:
-      return DW_DS__string_hex (udata, alloc);
+      return DW_DS__strdup_hex (udata);
 
     case DW_AT_discr_value:
-      return DW_DSC__string_hex (udata, alloc);
+      return DW_DSC__strdup_hex (udata);
 
     case DW_AT_identifier_case:
-      return DW_ID__string_hex (udata, alloc);
+      return DW_ID__strdup_hex (udata);
 
     case DW_AT_endianity:
-      return DW_END__string_hex (udata, alloc);
+      return DW_END__strdup_hex (udata);
 
     case DW_AT_inline:
-      return DW_INL__string_hex (udata, alloc);
+      return DW_INL__strdup_hex (udata);
 
     case DW_AT_language:
-      return DW_LANG__string_hex (udata, alloc);
+      return DW_LANG__strdup_hex (udata);
 
     case DW_AT_ordering:
-      return DW_ORD__string_hex (udata, alloc);
+      return DW_ORD__strdup_hex (udata);
 
     case DW_AT_virtuality:
-      return DW_VIRTUALITY__string_hex (udata, alloc);
+      return DW_VIRTUALITY__strdup_hex (udata);
 
     case DW_AT_visibility:
-      return DW_VIS__string_hex (udata, alloc);
+      return DW_VIS__strdup_hex (udata);
 
     default:
       break;
@@ -112,50 +112,46 @@ attr_value_data_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
 
   /* Print signed and small-unsigned constants in decimal.  */
   if (udata < 0x10000 || dwarf_whatform (attr) == DW_FORM_sdata)
-    *alloc = g_strdup_printf ("%" G_GINT64_FORMAT, udata);
+    return g_strdup_printf ("%" G_GINT64_FORMAT, udata);
 
-  else
-    *alloc = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", udata);
-
-  return *alloc;
+  return g_strdup_printf ("%#" G_GINT64_MODIFIER "x", udata);
 }
 
 
-static const char *
-attr_value_sec_offset_string (Dwarf_Attribute *attr, char **alloc)
+static char *
+attr_value_sec_offset_string (Dwarf_Attribute *attr)
 {
   Dwarf_Word udata;
   if (dwarf_formudata (attr, &udata) != 0)
     return NULL;
 
   /* For now, just print section offsets as a [ref].  */
-  *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x]", udata);
-  return *alloc;
+  return g_strdup_printf ("[%" G_GINT64_MODIFIER "x]", udata);
 }
 
 
-static const char *
-attr_value_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
+static char *
+attr_value_string (Dwarf_Die *die, Dwarf_Attribute *attr)
 {
   bool flag;
   Dwarf_Die ref;
   Dwarf_Addr addr;
 
+  const char *str = NULL;
+
   switch (dwarf_whatform (attr))
     {
     case DW_FORM_addr:
       if (dwarf_formaddr (attr, &addr) == 0)
-        {
-          *alloc = g_strdup_printf ("%#" G_GINT64_MODIFIER "x", addr);
-          return *alloc;
-        }
+        return g_strdup_printf ("%#" G_GINT64_MODIFIER "x", addr);
       return NULL;
 
     case DW_FORM_indirect:
     case DW_FORM_strp:
     case DW_FORM_string:
     case DW_FORM_GNU_strp_alt:
-      return dwarf_formstring (attr);
+      str = dwarf_formstring (attr);
+      return (str != NULL) ? g_strdup (str) : NULL;
 
     case DW_FORM_ref_addr:
     case DW_FORM_ref_udata:
@@ -169,18 +165,16 @@ attr_value_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
         {
           Dwarf_Off offset = dwarf_dieoffset (&ref);
           const char *tag = DW_TAG__string (dwarf_tag (&ref));
-          if (G_UNLIKELY (tag == NULL))
-            *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %#x",
-                                      offset, dwarf_tag (&ref));
-          else
-            *alloc = g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
-                                      offset, tag);
-          return *alloc;
+          if (G_LIKELY (tag != NULL))
+            return g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %s",
+                                    offset, tag);
+          return g_strdup_printf ("[%" G_GINT64_MODIFIER "x] %#x",
+                                  offset, dwarf_tag (&ref));
         }
       return NULL;
 
     case DW_FORM_sec_offset:
-      return attr_value_sec_offset_string (attr, alloc);
+      return attr_value_sec_offset_string (attr);
 
     case DW_FORM_udata:
     case DW_FORM_data8:
@@ -188,15 +182,15 @@ attr_value_string (Dwarf_Die *die, Dwarf_Attribute *attr, char **alloc)
     case DW_FORM_data2:
     case DW_FORM_data1:
     case DW_FORM_sdata:
-      return attr_value_data_string (die, attr, alloc);
+      return attr_value_data_string (die, attr);
 
     case DW_FORM_flag:
       if (dwarf_formflag (attr, &flag) == 0)
-        return flag ? "yes" : "no";
+        return g_strdup (flag ? "yes" : "no");
       return NULL;
 
     case DW_FORM_flag_present:
-      return "yes";
+      return g_strdup ("yes");
 
     case DW_FORM_block:
     case DW_FORM_block1:
@@ -227,16 +221,9 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
   AttrCallback *data = (AttrCallback *)user_data;
   Dwarf_Die *die = data->die;
 
-  gchar *attribute_alloc = NULL;
-  const char *attribute = DW_AT__string_hex (dwarf_whatattr (attr),
-                                             &attribute_alloc);
-
-  gchar *form_alloc = NULL;
-  const gchar *form = DW_FORM__string_hex (dwarf_whatform (attr),
-                                           &form_alloc);
-
-  gchar *value_alloc = NULL;
-  const gchar *value = attr_value_string (die, attr, &value_alloc);
+  gchar *attribute = DW_AT__strdup_hex (dwarf_whatattr (attr));
+  gchar *form = DW_FORM__strdup_hex (dwarf_whatform (attr));
+  gchar *value = attr_value_string (die, attr);
 
   gtk_tree_store_insert_after (data->store, &data->iter,
                                data->parent, data->sibling);
@@ -248,12 +235,9 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
                       ATTR_TREE_INT_ATTR, attr,
                       -1);
 
-  if (attribute_alloc != NULL)
-    g_free (attribute_alloc);
-  if (form_alloc != NULL)
-    g_free (form_alloc);
-  if (value_alloc != NULL)
-    g_free (value_alloc);
+  g_free (attribute);
+  g_free (form);
+  g_free (value);
 
   Dwarf_Die ref;
   if (dwarf_whatattr (attr) != DW_AT_sibling

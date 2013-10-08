@@ -21,14 +21,14 @@
 #define ONE_KNOWN_DW(name, code) \
   case code: return #name;
 
-#define FALLBACK_FN(set, type, format)                  \
-  const char *                                          \
-  DW_##set##__string_##type (int code, char **alloc)    \
+#define DW_STRDUP_FN(set, type, format)                 \
+  char *                                                \
+  DW_##set##__strdup_##type (int code)                  \
   {                                                     \
     const char *str = DW_##set##__string (code);        \
-    if (G_UNLIKELY (str == NULL))                       \
-      str = *alloc = g_strdup_printf (format, code);    \
-    return str;                                         \
+    if (G_LIKELY (str != NULL))                         \
+      return g_strdup (str);                            \
+    return g_strdup_printf (format, code);              \
   }
 
 #define ONE_KNOWN_DW_SET(set)   \
@@ -41,7 +41,7 @@
       default: return NULL;     \
       }                         \
   }                             \
-  FALLBACK_FN (set, hex, "%#x")
+  DW_STRDUP_FN (set, hex, "%#x")
 
 ALL_KNOWN_DW_SETS
 
