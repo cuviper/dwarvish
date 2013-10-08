@@ -77,23 +77,24 @@ expand_die_children (GtkTreeStore *store,
 }
 
 
-G_MODULE_EXPORT void
-signal_die_tree_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
-                            G_GNUC_UNUSED GtkTreePath *path,
-                            G_GNUC_UNUSED gpointer user_data)
+G_MODULE_EXPORT gboolean
+signal_die_tree_test_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
+                                 G_GNUC_UNUSED GtkTreePath *path,
+                                 G_GNUC_UNUSED gpointer user_data)
 {
   GtkTreeModel *model = gtk_tree_view_get_model (tree_view);
 
   GtkTreeIter first_child;
   if (!gtk_tree_model_iter_children (model, &first_child, iter))
-    g_return_if_reached(); /* Should always have a child when expanding!  */
+    /* Should always have a child when expanding!  */
+    g_return_val_if_reached(TRUE);
 
   Dwarf_Die die;
   if (die_tree_get_die (model, &first_child, &die))
-    return; /* It's not just a placeholder, we're done.  */
+    return FALSE; /* It's not just a placeholder, we're done.  */
 
   if (!die_tree_get_die (model, iter, &die))
-    g_return_if_reached ();
+    g_return_val_if_reached(TRUE);
 
   /* Fill in the real children.  */
   DwarvishSession *session = g_object_get_data (G_OBJECT (model),
@@ -105,7 +106,7 @@ signal_die_tree_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
 
   /* Remove the placeholder.
    * NB: This could leave no children if we only had empty imports.  */
-  gtk_tree_store_remove (store, &first_child);
+  return !gtk_tree_store_remove (store, &first_child);
 }
 
 
