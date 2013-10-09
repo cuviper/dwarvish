@@ -279,6 +279,36 @@ signal_die_tree_selection_changed (GtkTreeSelection *selection,
 }
 
 
+G_MODULE_EXPORT gboolean
+signal_attr_tree_query_tooltip (GtkWidget *widget,
+                                gint x, gint y, gboolean keyboard_mode,
+                                GtkTooltip *tooltip,
+                                G_GNUC_UNUSED gpointer user_data)
+{
+  GtkTreeView *view = GTK_TREE_VIEW (widget);
+
+  GtkTreeModel *model;
+  GtkTreePath *path;
+  GtkTreeIter iter;
+  if (!gtk_tree_view_get_tooltip_context (view, &x, &y, keyboard_mode,
+                                          &model, &path, &iter))
+    return FALSE;
+
+  gchar *value = NULL;
+  gtk_tree_model_get (model, &iter, ATTR_TREE_COL_VALUE, &value, -1);
+  if (value != NULL)
+    {
+      gtk_tooltip_set_text (tooltip, value);
+      gtk_tree_view_set_tooltip_row (view, tooltip, path);
+      g_free (value);
+    }
+
+  gtk_tree_path_free (path);
+
+  return (value != NULL);
+}
+
+
 static void
 attr_tree_render_column (GtkTreeView *view, gint column)
 {

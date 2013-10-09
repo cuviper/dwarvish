@@ -141,6 +141,36 @@ signal_die_tree_test_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
 }
 
 
+G_MODULE_EXPORT gboolean
+signal_die_tree_query_tooltip (GtkWidget *widget,
+                               gint x, gint y, gboolean keyboard_mode,
+                               GtkTooltip *tooltip,
+                               G_GNUC_UNUSED gpointer user_data)
+{
+  GtkTreeView *view = GTK_TREE_VIEW (widget);
+
+  GtkTreeModel *model;
+  GtkTreePath *path;
+  GtkTreeIter iter;
+  if (!gtk_tree_view_get_tooltip_context (view, &x, &y, keyboard_mode,
+                                          &model, &path, &iter))
+    return FALSE;
+
+  gchar *name = NULL;
+  gtk_tree_model_get (model, &iter, DIE_TREE_COL_NAME, &name, -1);
+  if (name != NULL)
+    {
+      gtk_tooltip_set_text (tooltip, name);
+      gtk_tree_view_set_tooltip_row (view, tooltip, path);
+      g_free (name);
+    }
+
+  gtk_tree_path_free (path);
+
+  return (name != NULL);
+}
+
+
 static void
 die_tree_render_column (GtkTreeView *view, gint column)
 {
