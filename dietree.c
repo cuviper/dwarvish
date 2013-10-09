@@ -73,9 +73,9 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 }
 
 
-static void
-expand_die_children (GtkTreeStore *store,
-                     GtkTreeIter *parent, GtkTreeIter *iter,
+static GtkTreeIter *
+expand_die_children (GtkTreeStore *store, GtkTreeIter *iter,
+                     GtkTreeIter *parent, GtkTreeIter *sibling,
                      Dwarf_Die *die, gboolean explicit_imports)
 {
   Dwarf_Die child;
@@ -89,15 +89,18 @@ expand_die_children (GtkTreeStore *store,
             Dwarf_Attribute attr;
             if (dwarf_attr (&child, DW_AT_import, &attr) != NULL &&
                 dwarf_formref_die (&attr, &import) != NULL)
-              expand_die_children (store, parent, iter,
-                                   &import, explicit_imports);
+              sibling = expand_die_children (store, iter, parent, sibling,
+                                             &import, explicit_imports);
             continue;
           }
 
-        gtk_tree_store_insert_after (store, iter, parent, iter);
+        if (sibling != NULL)
+          gtk_tree_store_insert_after (store, iter, parent, sibling);
         die_tree_set_die (store, iter, &child);
+        sibling = iter;
       }
     while (dwarf_siblingof (&child, &child) == 0);
+  return sibling;
 }
 
 
@@ -125,12 +128,16 @@ signal_die_tree_test_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
                                                 "DwarvishSession");
   GtkTreeStore *store = GTK_TREE_STORE (model);
   GtkTreeIter child = first_child;
-  expand_die_children (store, iter, &child,
-                       &die, session->explicit_imports);
+  GtkTreeIter *last = expand_die_children (store, &child, iter, NULL,
+                                           &die, session->explicit_imports);
 
-  /* Remove the placeholder.
-   * NB: This could leave no children if we only had empty imports.  */
-  return !gtk_tree_store_remove (store, &first_child);
+  if (last != NULL)
+    return FALSE;
+
+  /* Nothing was inserted, so remove the placeholder.
+   * NB: This leaves no children -- must have been empty imports?!  */
+  gtk_tree_store_remove (store, &first_child);
+  return TRUE;
 }
 
 
