@@ -47,13 +47,93 @@ die_tree_get_die (GtkTreeModel *model, GtkTreeIter *iter,
 }
 
 
+static GString *
+dwarf_die_typename (Dwarf_Die *die)
+{
+  const char *prepend = NULL, *append = NULL;
+  switch (dwarf_tag (die))
+    {
+    case DW_TAG_base_type:
+    case DW_TAG_typedef:
+      return g_string_new (dwarf_diename (die));
+
+    case DW_TAG_class_type:
+      prepend = "class ";
+      break;
+    case DW_TAG_enumeration_type:
+      prepend = "enum ";
+      break;
+    case DW_TAG_structure_type:
+      prepend = "struct ";
+      break;
+    case DW_TAG_union_type:
+      prepend = "union ";
+      break;
+
+    case DW_TAG_array_type:
+      append = "[]";
+      break;
+    case DW_TAG_const_type:
+      append = " const";
+      break;
+    case DW_TAG_pointer_type:
+      append = "*";
+      break;
+    case DW_TAG_reference_type:
+      append = "&";
+      break;
+    case DW_TAG_rvalue_reference_type:
+      append = "&&";
+      break;
+    case DW_TAG_volatile_type:
+      append = " volatile";
+      break;
+
+    case DW_TAG_subroutine_type:
+      /* TODO, but it's tricky... */
+
+    default:
+      return NULL;
+    }
+
+  GString *string = NULL;
+  if (prepend != NULL)
+    {
+      GString *string = g_string_new (prepend);
+      return g_string_append (string, dwarf_diename (die) ?: "{...}");
+    }
+
+  Dwarf_Die type;
+  Dwarf_Attribute attr;
+  if (dwarf_attr (die, DW_AT_type, &attr) == NULL)
+    string = g_string_new ("void");
+  else if (dwarf_formref_die (&attr, &type) != NULL)
+    string = dwarf_die_typename (&type);
+
+  if (string == NULL)
+    return NULL;
+
+  if (append != NULL)
+    g_string_append (string, append);
+
+  return string;
+}
+
+
 static void
-die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
+die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter,
+                  Dwarf_Die *die, const char *name)
 {
   gchar *offset = g_strdup_printf ("%" G_GINT64_MODIFIER "x",
                                    dwarf_dieoffset (die));
   gchar *tag = DW_TAG__strdup_hex (dwarf_tag (die));
-  const gchar *name = dwarf_diename (die);
+
+  GString *typename = NULL;
+  if (name == NULL)
+    {
+      typename = dwarf_die_typename (die);
+      name = (typename != NULL) ? typename->str : dwarf_diename (die);
+    }
 
   gtk_tree_store_set (store, iter,
                       DIE_TREE_COL_OFFSET, offset,
@@ -64,6 +144,8 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter, Dwarf_Die *die)
 
   g_free (offset);
   g_free (tag);
+  if (typename != NULL)
+    g_string_free (typename, TRUE);
 
   if (dwarf_haschildren (die))
     {
@@ -96,7 +178,7 @@ expand_die_children (GtkTreeStore *store, GtkTreeIter *iter,
 
         if (sibling != NULL)
           gtk_tree_store_insert_after (store, iter, parent, sibling);
-        die_tree_set_die (store, iter, &child);
+        die_tree_set_die (store, iter, &child, NULL);
         sibling = iter;
       }
     while (dwarf_siblingof (&child, &child) == 0);
@@ -216,10 +298,19 @@ die_tree_view_render (GtkTreeView *view, DwarvishSession *session,
           dwarf_tag (&die) == DW_TAG_partial_unit)
         continue;
 
+      char *sig8_name = NULL;
+      const char *name = dwarf_diename (&die);
+      if (name == NULL && types)
+        name = sig8_name = g_strdup_printf ("{%016" G_GINT64_MODIFIER "x}",
+                                            type_signature);
+
       empty = FALSE;
       gtk_tree_store_insert_after (store, &iter, NULL, sibling);
-      die_tree_set_die (store, &iter, &die);
+      die_tree_set_die (store, &iter, &die, name);
       sibling = &iter;
+
+      if (sig8_name)
+        g_free (sig8_name);
     }
 
   gtk_tree_view_set_model (view, GTK_TREE_MODEL (store));
