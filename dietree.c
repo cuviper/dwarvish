@@ -48,7 +48,7 @@ die_tree_get_die (GtkTreeModel *model, GtkTreeIter *iter,
 
 
 static GString *
-dwarf_die_typename (Dwarf_Die *die)
+dwarf_die_typename_part (Dwarf_Die *die, Dwarf_Die *subroutine)
 {
   const char *prepend = NULL, *append = NULL;
   switch (dwarf_tag (die))
@@ -90,7 +90,12 @@ dwarf_die_typename (Dwarf_Die *die)
       break;
 
     case DW_TAG_subroutine_type:
-      /* TODO, but it's tricky... */
+      /* Subroutine types (function pointers) are a weird case.  The modifiers
+       * we've recursed so far need to go in the middle, with the return type
+       * on the left and parameter types on the right.  We'll back out now to
+       * get those modifiers, getting the return and parameters separately.  */
+      *subroutine = *die;
+      return g_string_new ("");
 
     default:
       return NULL;
@@ -108,7 +113,7 @@ dwarf_die_typename (Dwarf_Die *die)
   if (dwarf_attr (die, DW_AT_type, &attr) == NULL)
     string = g_string_new ("void");
   else if (dwarf_formref_die (&attr, &type) != NULL)
-    string = dwarf_die_typename (&type);
+    string = dwarf_die_typename_part (&type, subroutine);
 
   if (string == NULL)
     return NULL;
@@ -117,6 +122,73 @@ dwarf_die_typename (Dwarf_Die *die)
     g_string_append (string, append);
 
   return string;
+}
+
+
+static GString *
+dwarf_die_typename (Dwarf_Die *die)
+{
+  Dwarf_Die subroutine;
+  subroutine.addr = 0;
+
+  GString *string = dwarf_die_typename_part (die, &subroutine);
+  if (string == NULL || subroutine.addr == 0)
+    return string;
+
+  /* Subroutine types need special handling.  First add the return value.  */
+  GString *retval;
+  Dwarf_Die type;
+  Dwarf_Attribute attr;
+  g_string_prepend (string, " (");
+  if (dwarf_attr (&subroutine, DW_AT_type, &attr) == NULL)
+    g_string_prepend (string, "void");
+  else if (dwarf_formref_die (&attr, &type) != NULL &&
+           (retval = dwarf_die_typename (&type)) != NULL)
+    {
+      g_string_prepend (string, retval->str);
+      g_string_free (retval, TRUE);
+    }
+  else
+    g_string_prepend (string, "?");
+  g_string_append (string, ")");
+
+  /* Now parameters.  */
+  gboolean first = TRUE;
+  g_string_append (string, " (");
+  Dwarf_Die child;
+  if (dwarf_child (&subroutine, &child) == 0)
+    do
+      if (dwarf_tag (&child) == DW_TAG_formal_parameter)
+        {
+          if (!first)
+            g_string_append (string, ", ");
+          else
+            first = FALSE;
+
+          GString *param;
+          if (dwarf_attr (&child, DW_AT_type, &attr) == NULL)
+            g_string_append (string, "void");
+          else if (dwarf_formref_die (&attr, &type) != NULL &&
+                   (param = dwarf_die_typename (&type)) != NULL)
+            {
+              g_string_append (string, param->str);
+              g_string_free (param, TRUE);
+            }
+          else
+            g_string_append (string, "?");
+        }
+      else if (dwarf_tag (&child) == DW_TAG_unspecified_parameters)
+        {
+          if (!first)
+            g_string_append (string, ", ");
+          else
+            first = FALSE;
+          g_string_append (string, "...");
+        }
+    while (dwarf_siblingof (&child, &child) == 0);
+  if (first)
+    g_string_append (string, "void");
+  return g_string_append (string, ")");
 }
 
 
