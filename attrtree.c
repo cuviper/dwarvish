@@ -207,6 +207,7 @@ attr_value_string (Dwarf_Die *die, Dwarf_Attribute *attr)
 
 typedef struct _AttrCallback
 {
+  gboolean explicit_siblings;
   Dwarf_Die *die;
   GtkTreeStore *store;
   GtkTreeIter *parent;
@@ -220,6 +221,12 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
 {
   AttrCallback *data = (AttrCallback *)user_data;
   Dwarf_Die *die = data->die;
+
+  /* Siblings are hidden by default, as they're not really information
+   * about the selected DIE itself.  */
+  gboolean is_sibling = (dwarf_whatattr (attr) == DW_AT_sibling);
+  if (is_sibling && !data->explicit_siblings)
+    return DWARF_CB_OK;
 
   gchar *attribute = DW_AT__strdup_hex (dwarf_whatattr (attr));
   gchar *form = DW_FORM__strdup_hex (dwarf_whatform (attr));
@@ -239,9 +246,10 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
   g_free (form);
   g_free (value);
 
+  /* Even when sibling attributes are explicitly shown, don't recurse on them,
+   * as they're already shown as neighbors in the die tree.  */
   Dwarf_Die ref;
-  if (dwarf_whatattr (attr) != DW_AT_sibling
-      && dwarf_formref_die (attr, &ref) != NULL)
+  if (!is_sibling && dwarf_formref_die (attr, &ref) != NULL)
     {
       AttrCallback cbdata = *data;
       cbdata.die = &ref;
@@ -270,12 +278,17 @@ signal_die_tree_selection_changed (GtkTreeSelection *selection,
       || !die_tree_get_die (model, &iter, &die))
     return;
 
+  DwarvishSession *session = g_object_get_data (G_OBJECT (model),
+                                                "DwarvishSession");
+
   AttrCallback cbdata;
+  cbdata.explicit_siblings = session->explicit_siblings;
   cbdata.die = &die;
   cbdata.store = store;
   cbdata.parent = NULL;
   cbdata.sibling = NULL;
   dwarf_getattrs (&die, getattrs_callback, &cbdata, 0);
+  gtk_tree_view_expand_all (view);
 }
 
 
@@ -324,7 +337,7 @@ attr_tree_render_column (GtkTreeView *view, gint column)
 
 
 gboolean
-attr_tree_view_render (GtkTreeView *attrtree)
+attr_tree_view_render (GtkTreeView *attrtree, DwarvishSession *session)
 {
   GtkTreeStore *store = gtk_tree_store_new (ATTR_TREE_N_COLUMNS,
                                             G_TYPE_STRING,
@@ -332,6 +345,7 @@ attr_tree_view_render (GtkTreeView *attrtree)
                                             G_TYPE_STRING,
                                             G_TYPE_DWARF_DIE,
                                             G_TYPE_DWARF_ATTR);
+  g_object_set_data (G_OBJECT (store), "DwarvishSession", session);
 
   gtk_tree_view_set_model (attrtree, GTK_TREE_MODEL (store));
   g_object_unref (store); /* The view keeps its own reference.  */

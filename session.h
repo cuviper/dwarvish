@@ -19,6 +19,7 @@ typedef struct _DwarvishSession
 {
   /* User options.  */
   gboolean explicit_imports;
+  gboolean explicit_siblings;
   gchar *kernel;
   gchar *module;
   gchar *file;

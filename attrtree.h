@@ -14,9 +14,12 @@
 #include <elfutils/libdw.h>
 #include <gtk/gtk.h>
 
+#include "session.h"
+
 
 G_GNUC_INTERNAL
-gboolean attr_tree_view_render (GtkTreeView *attrtree);
+gboolean attr_tree_view_render (GtkTreeView *attrtree,
+                                DwarvishSession *session);
 
 
 #endif /* _ATTRTREE_H_ */

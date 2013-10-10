@@ -48,7 +48,7 @@ create_die_widget (DwarvishSession *session, gboolean types)
   GtkTreeView *attrview = GTK_TREE_VIEW (gtk_builder_get_object (builder, "attrtreeview"));
 
   if (die_tree_view_render (dieview, session, types)
-      && attr_tree_view_render (attrview))
+      && attr_tree_view_render (attrview, session))
     {
       g_object_ref (widget);
       gtk_builder_connect_signals (builder, NULL);
@@ -242,6 +242,11 @@ main (int argc, char **argv)
           "explicit-imports", 0, 0, G_OPTION_ARG_NONE,
           &session->explicit_imports,
           "Show explicit partial/imported_unit DIEs", NULL
+        },
+        {
+          "explicit-siblings", 0, 0, G_OPTION_ARG_NONE,
+          &session->explicit_siblings,
+          "Show explicit sibling DIE attributes", NULL
         },
         {
           "kernel", 'k', 0, G_OPTION_ARG_FILENAME, &session->kernel,
