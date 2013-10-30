@@ -37,6 +37,20 @@ static G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Attribute, dwarf_attr);
 #define G_TYPE_DWARF_ATTR (dwarf_attr_get_type ())
 
 
+gboolean
+attr_tree_get_attribute (GtkTreeModel *model, GtkTreeIter *iter,
+                         Dwarf_Attribute *attr_mem)
+{
+  Dwarf_Attribute *attr = NULL;
+  gtk_tree_model_get (model, iter, ATTR_TREE_INT_ATTR, &attr, -1);
+  if (attr == NULL)
+    return FALSE;
+  *attr_mem = *attr;
+  dwarf_attr_free (attr);
+  return TRUE;
+}
+
+
 /* Like dwarf_decl_file for an already known DW_AT_decl_file.  This might be
  * a bit paranoid, but it's more directly showing what's specified.  */
 static const char *

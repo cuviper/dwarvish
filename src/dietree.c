@@ -14,6 +14,7 @@
 
 #include <dwarf.h>
 #include "dietree.h"
+#include "attrtree.h"
 #include "dwstring.h"
 #include "util.h"
 
@@ -29,7 +30,7 @@ enum
 
 
 static G_DEFINE_SLICED_COPY (Dwarf_Die, dwarf_die);
-G_DEFINE_SLICED_FREE (Dwarf_Die, dwarf_die);
+static G_DEFINE_SLICED_FREE (Dwarf_Die, dwarf_die);
 G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Die, dwarf_die);
 
 
@@ -258,17 +259,12 @@ expand_die_children (GtkTreeStore *store, GtkTreeIter *iter,
 }
 
 
-G_MODULE_EXPORT gboolean
-signal_die_tree_test_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
-                                 G_GNUC_UNUSED GtkTreePath *path,
-                                 G_GNUC_UNUSED gpointer user_data)
+static gboolean
+die_tree_iter_is_leaf (GtkTreeModel *model, GtkTreeIter *iter)
 {
-  GtkTreeModel *model = gtk_tree_view_get_model (tree_view);
-
   GtkTreeIter first_child;
   if (!gtk_tree_model_iter_children (model, &first_child, iter))
-    /* Should always have a child when expanding!  */
-    g_return_val_if_reached(TRUE);
+    return TRUE;
 
   Dwarf_Die die;
   if (die_tree_get_die (model, &first_child, &die))
@@ -292,6 +288,106 @@ signal_die_tree_test_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
    * NB: This leaves no children -- must have been empty imports?!  */
   gtk_tree_store_remove (store, &first_child);
   return TRUE;
+}
+
+
+G_MODULE_EXPORT gboolean
+signal_die_tree_test_expand_row (GtkTreeView *tree_view, GtkTreeIter *iter,
+                                 G_GNUC_UNUSED GtkTreePath *path,
+                                 G_GNUC_UNUSED gpointer user_data)
+{
+  GtkTreeModel *model = gtk_tree_view_get_model (tree_view);
+  return die_tree_iter_is_leaf (model, iter);
+}
+
+
+/* Search depth-first for a matching die, and return its path.  */
+static GtkTreePath *
+die_tree_search_down (GtkTreeModel *model, Dwarf_Die *search_die,
+                      GtkTreeIter *iter)
+{
+  Dwarf_Die die;
+  if (die_tree_get_die (model, iter, &die) &&
+      die.addr == search_die->addr)
+    return gtk_tree_model_get_path (model, iter);
+
+  GtkTreeIter child;
+  if (die_tree_iter_is_leaf (model, iter) ||
+      !gtk_tree_model_iter_children (model, &child, iter))
+    return NULL;
+
+  GtkTreePath *path;
+  do
+    path = die_tree_search_down (model, search_die, &child);
+  while (path == NULL && gtk_tree_model_iter_next (model, &child));
+  return path;
+}
+
+
+/* Search depth-first for a matching die, retrying upwards if needed.  */
+static GtkTreePath *
+die_tree_search_up (GtkTreeModel *model, Dwarf_Die *search_die,
+                    GtkTreeIter *iter)
+{
+  /* First look downward.  */
+  GtkTreePath *path = die_tree_search_down (model, search_die, iter);
+  if (path != NULL)
+    return path;
+
+  /* No luck, then try again from this parent.
+   * NB: As written, this will not cross into other CUs.  */
+  GtkTreeIter parent;
+  if (gtk_tree_model_iter_parent (model, &parent, iter))
+    return die_tree_search_up (model, search_die, &parent);
+
+  return NULL;
+}
+
+
+/* When a "ref" attribute is activated (enter / double-click), find the
+ * corresponding DIE in its tree and relocate the cursor there.  */
+G_MODULE_EXPORT void
+signal_attr_tree_row_activated (GtkTreeView *attrview,
+                                GtkTreePath *path,
+                                G_GNUC_UNUSED GtkTreeViewColumn *column,
+                                gpointer user_data)
+{
+  GtkTreeView *view = GTK_TREE_VIEW (user_data);
+  GtkTreeModel *model = gtk_tree_view_get_model (view);
+
+  /* First read the DIE from the attribute.  */
+  Dwarf_Attribute attr;
+  Dwarf_Die die;
+  GtkTreeIter iter;
+  GtkTreeModel *attrmodel = gtk_tree_view_get_model (attrview);
+  if (!gtk_tree_model_get_iter (attrmodel, &iter, path)
+      || !attr_tree_get_attribute (attrmodel, &iter, &attr)
+      || !dwarf_formref_die (&attr, &die))
+    return;
+
+  /* Now search for the same die->addr in the die tree.  It's a depth-first
+   * search which starts on the current die cursor.  If that fails it tries
+   * again from the parent, etc.  That way we can hopefully keep the lazy
+   * expansion to a minimum.  */
+  GtkTreePath *cursor_path;
+  gtk_tree_view_get_cursor (view, &cursor_path, NULL);
+  if (gtk_tree_model_get_iter (model, &iter, cursor_path))
+    {
+      GtkTreePath *diepath = die_tree_search_up (model, &die, &iter);
+      if (diepath != NULL)
+        {
+          /* Expand nodes up to but not including the target.  */
+          GtkTreePath *parentpath = gtk_tree_path_copy (diepath);
+          gtk_tree_path_up (parentpath);
+          gtk_tree_view_expand_to_path (view, parentpath);
+          gtk_tree_path_free (parentpath);
+
+          /* Select the target.  */
+          gtk_tree_view_set_cursor (view, diepath, NULL, FALSE);
+          gtk_tree_path_free (diepath);
+        }
+    }
+  gtk_tree_path_free (cursor_path);
 }
 
 

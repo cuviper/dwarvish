@@ -27,7 +27,6 @@ gboolean die_tree_get_die (GtkTreeModel *model,
                            GtkTreeIter *iter,
                            Dwarf_Die *die);
 
-G_GNUC_INTERNAL void dwarf_die_free (gpointer boxed);
 G_GNUC_INTERNAL GType dwarf_die_get_type (void);
 #define G_TYPE_DWARF_DIE (dwarf_die_get_type ())
 

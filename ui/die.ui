@@ -57,6 +57,7 @@
             <property name="can_focus">True</property>
             <property name="has_tooltip">True</property>
             <property name="enable_tree_lines">True</property>
+            <signal name="row-activated" handler="signal_attr_tree_row_activated" object="dietreeview" swapped="no"/>
             <signal name="query-tooltip" handler="signal_attr_tree_query_tooltip" swapped="no"/>
             <child internal-child="selection">
               <object class="GtkTreeSelection" id="attrtreeview-selection"/>

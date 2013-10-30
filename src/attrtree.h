@@ -21,6 +21,11 @@ G_GNUC_INTERNAL
 gboolean attr_tree_view_render (GtkTreeView *attrtree,
                                 DwarvishSession *session);
 
+G_GNUC_INTERNAL
+gboolean attr_tree_get_attribute (GtkTreeModel *model,
+                                  GtkTreeIter *iter,
+                                  Dwarf_Attribute *attr);
+
 
 #endif /* _ATTRTREE_H_ */
 
