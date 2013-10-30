@@ -231,28 +231,39 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter,
 static GtkTreeIter *
 expand_die_children (GtkTreeStore *store, GtkTreeIter *iter,
                      GtkTreeIter *parent, GtkTreeIter *sibling,
-                     Dwarf_Die *die, gboolean explicit_imports)
+                     Dwarf_Die *die, DwarvishSession *session)
 {
   Dwarf_Die child;
   if (dwarf_child (die, &child) == 0)
     do
       {
-        if (!explicit_imports &&
+        gboolean have_import = FALSE;
+        Dwarf_Die import;
+        if (!session->explicit_imports &&
             dwarf_tag (&child) == DW_TAG_imported_unit)
           {
-            Dwarf_Die import;
             Dwarf_Attribute attr;
-            if (dwarf_attr (&child, DW_AT_import, &attr) != NULL &&
-                dwarf_formref_die (&attr, &import) != NULL)
-              sibling = expand_die_children (store, iter, parent, sibling,
-                                             &import, explicit_imports);
-            continue;
+            have_import = (dwarf_attr (&child, DW_AT_import, &attr) != NULL
+                           && dwarf_formref_die (&attr, &import) != NULL);
+            if (!session->nested_imports && have_import)
+              {
+                sibling = expand_die_children (store, iter, parent, sibling,
+                                               &import, session);
+                continue;
+              }
           }
 
         if (sibling != NULL)
           gtk_tree_store_insert_after (store, iter, parent, sibling);
         die_tree_set_die (store, iter, &child, NULL);
         sibling = iter;
+
+        if (session->nested_imports && have_import)
+          {
+            GtkTreeIter import_iter;
+            gtk_tree_store_insert_after (store, &import_iter, iter, NULL);
+            die_tree_set_die (store, &import_iter, &import, NULL);
+          }
       }
     while (dwarf_siblingof (&child, &child) == 0);
   return sibling;
@@ -279,7 +290,7 @@ die_tree_iter_is_leaf (GtkTreeModel *model, GtkTreeIter *iter)
   GtkTreeStore *store = GTK_TREE_STORE (model);
   GtkTreeIter child = first_child;
   GtkTreeIter *last = expand_die_children (store, &child, iter, NULL,
-                                           &die, session->explicit_imports);
+                                           &die, session);
 
   if (last != NULL)
     return FALSE;

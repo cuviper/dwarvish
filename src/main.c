@@ -239,6 +239,11 @@ main (int argc, char **argv)
           "Show version information and exit", NULL
         },
         {
+          "nested-imports", 0, 0, G_OPTION_ARG_NONE,
+          &session->nested_imports,
+          "Show imported_unit DIEs as if nested", NULL
+        },
+        {
           "explicit-imports", 0, 0, G_OPTION_ARG_NONE,
           &session->explicit_imports,
           "Show explicit partial/imported_unit DIEs", NULL
@@ -267,6 +272,9 @@ main (int argc, char **argv)
                            "| [--kernel=RELEASE] [--module=MODULE]",
                            options, NULL, &error))
     exit_message (error ? error->message : NULL, TRUE);
+
+  if (session->nested_imports && session->explicit_imports)
+    exit_message ("--nested-imports and --explicit-imports are exclusive.", TRUE);
 
   if (files)
     {
