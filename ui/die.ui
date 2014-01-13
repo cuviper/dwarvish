@@ -15,6 +15,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="has_tooltip">True</property>
+            <property name="search_column">2</property>
             <property name="enable_tree_lines">True</property>
             <signal name="test-expand-row" handler="signal_die_tree_test_expand_row" swapped="no"/>
             <signal name="query-tooltip" handler="signal_die_tree_query_tooltip" swapped="no"/>
@@ -56,6 +57,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="has_tooltip">True</property>
+            <property name="enable_search">False</property>
             <property name="enable_tree_lines">True</property>
             <signal name="row-activated" handler="signal_attr_tree_row_activated" object="dietreeview" swapped="no"/>
             <signal name="query-tooltip" handler="signal_attr_tree_query_tooltip" swapped="no"/>
