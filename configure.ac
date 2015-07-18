@@ -2,7 +2,7 @@ AC_PREREQ([2.69])
 AC_INIT([Dwarvish], [0.1], [https://github.com/cuviper/dwarvish/issues],
         [dwarvish], [https://github.com/cuviper/dwarvish])
 
-AM_INIT_AUTOMAKE([1.13 foreign])
+AM_INIT_AUTOMAKE([1.13 foreign subdir-objects])
 AM_SILENT_RULES([yes])
 AM_MAINTAINER_MODE
 
