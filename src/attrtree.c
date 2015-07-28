@@ -227,6 +227,7 @@ typedef struct _AttrCallback
   GtkTreeIter *parent;
   GtkTreeIter *sibling;
   GtkTreeIter iter;
+  struct _AttrCallback *back;
 } AttrCallback;
 
 
@@ -265,11 +266,20 @@ getattrs_callback (Dwarf_Attribute *attr, void *user_data)
   Dwarf_Die ref;
   if (!is_sibling && dwarf_formref_die (attr, &ref) != NULL)
     {
-      AttrCallback cbdata = *data;
-      cbdata.die = &ref;
-      cbdata.parent = &data->iter;
-      cbdata.sibling = NULL;
-      dwarf_getattrs (&ref, getattrs_callback, &cbdata, 0);
+      /* Scan backwards to avoid expanding cycles.  */
+      AttrCallback *match = data;
+      while (match && match->die->addr != ref.addr)
+        match = match->back;
+
+      if (match == NULL)
+        {
+          AttrCallback cbdata = *data;
+          cbdata.die = &ref;
+          cbdata.parent = &data->iter;
+          cbdata.sibling = NULL;
+          cbdata.back = data;
+          dwarf_getattrs (&ref, getattrs_callback, &cbdata, 0);
+        }
     }
 
   data->sibling = &data->iter;
@@ -301,6 +311,7 @@ signal_die_tree_selection_changed (GtkTreeSelection *selection,
   cbdata.store = store;
   cbdata.parent = NULL;
   cbdata.sibling = NULL;
+  cbdata.back = NULL;
   dwarf_getattrs (&die, getattrs_callback, &cbdata, 0);
   gtk_tree_view_expand_all (view);
 }
