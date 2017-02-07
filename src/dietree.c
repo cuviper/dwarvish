@@ -204,7 +204,23 @@ die_tree_set_die (GtkTreeStore *store, GtkTreeIter *iter,
   GString *typename = NULL;
   if (name == NULL)
     {
-      typename = dwarf_die_typename (die);
+      Dwarf_Die cu;
+      Dwarf_Attribute attr;
+      Dwarf_Sword lang;
+      if (dwarf_diecu (die, &cu, NULL, NULL) &&
+          dwarf_attr (&cu, DW_AT_language, &attr) &&
+          dwarf_formsdata (&attr, &lang) == 0)
+        switch (lang) {
+            case DW_LANG_C:
+            case DW_LANG_C89:
+            case DW_LANG_C99:
+            case DW_LANG_C11:
+            case DW_LANG_C_plus_plus:
+            case DW_LANG_C_plus_plus_11:
+            case DW_LANG_C_plus_plus_14:
+              typename = dwarf_die_typename (die);
+              break;
+        }
       name = (typename != NULL) ? typename->str : dwarf_diename (die);
     }
 
