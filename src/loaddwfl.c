@@ -14,6 +14,7 @@
 
 #include <glib.h>
 #include <string.h>
+#include <elfutils/libdwelf.h>
 
 #include "loaddwfl.h"
 
@@ -114,28 +115,12 @@ get_first_module (Dwfl *dwfl)
 const char *
 get_debugaltfile (Dwarf *dwarf)
 {
-  Elf *elf = dwarf_getelf (dwarf);
-  size_t shstrndx;
-  Elf_Scn *scn = NULL;
-
-  elf_getshdrstrndx (elf, &shstrndx);
-
-  while ((scn = elf_nextscn (elf, scn)))
-    {
-      GElf_Shdr shdr;
-      if ((gelf_getshdr (scn, &shdr) == NULL)
-          || (shdr.sh_type != SHT_PROGBITS))
-        continue;
-
-      const char* sh_name = elf_strptr (elf, shstrndx, shdr.sh_name);
-      if (strcmp (sh_name, ".gnu_debugaltlink") != 0)
-        continue;
-
-      Elf_Data *data = elf_getdata (scn, NULL);
-      if (data != NULL)
-        return data->d_buf;
-    }
-
+  // libdwfl's find_debug_altlink() explicitly chooses not to save the altfile
+  // anywhere, so instead we have to fetch that ourselves through libdwelf.
+  const char *name;
+  const void *buildid;
+  if (dwelf_dwarf_gnu_debugaltlink (dwarf, &name, &buildid) > 0)
+    return name;
   return NULL;
 }
 

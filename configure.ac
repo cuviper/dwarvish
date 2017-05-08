@@ -10,10 +10,8 @@ AM_MAINTAINER_MODE
 AC_PROG_CC
 
 # Checks for libraries.
-AC_CHECK_LIB([dw], [dwarf_next_unit], [],
-             [AC_MSG_FAILURE([elfutils libdw >= 0.148 is required])])
-AC_CHECK_LIB([elf], [elf_getshdrstrndx], [],
-             [AC_MSG_FAILURE([elfutils libelf >= 0.142 is required])])
+AC_CHECK_LIB([dw], [dwelf_dwarf_gnu_debugaltlink], [],
+             [AC_MSG_FAILURE([elfutils libdw >= 0.159 is required])])
 
 # NB: glib-2.32 is required for glib-compile-resources.
 # That's around gtk+ 3.4, so that might as well be the baseline.
