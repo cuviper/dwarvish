@@ -26,10 +26,12 @@ set == "" && $1 ~ /DW_([A-Z_]+)_([^ ]+)/ {
   sub(/^DW_/, "", set);
   sub(/_[^[:upper:]_].*$/, "", set);
   if (set ~ /LANG_.+/) set = "LANG";
+  if (set ~ /SECT_INFO/) set = "SECT";
 }
 
 $1 ~ /DW([_A-Z]+)_([^ ]+)/ {
   if ($1 == "DW_CFA_extended") next; # conflicts with DW_CFA_nop
+  if ($1 == "DW_CFA_AARCH64_negate_ra_state") next; # conflicts with DW_CFA_GNU_window_save
   if (set == "CIE_ID") next; # values don't fit in ints
   match($1, ("DW_" set "_([^ ]+)"), fields);
   elt = fields[1];

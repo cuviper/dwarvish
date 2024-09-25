@@ -33,7 +33,7 @@ enum
 
 static G_DEFINE_SLICED_COPY (Dwarf_Attribute, dwarf_attr);
 static G_DEFINE_SLICED_FREE (Dwarf_Attribute, dwarf_attr);
-static G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Attribute, dwarf_attr);
+G_DEFINE_SLICED_BOXED_TYPE (Dwarf_Attribute, dwarf_attr);
 #define G_TYPE_DWARF_ATTR (dwarf_attr_get_type ())
 
 
